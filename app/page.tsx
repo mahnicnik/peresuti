@@ -1,69 +1,106 @@
-import Image from "next/image";
+import Link from 'next/link'
+import Image from 'next/image'
+import Peresutko from '@/components/Peresutko'
 
-export default function Home() {
+export default function HomePage() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <div className="container-app py-12 sm:py-16">
+      <div className="text-center max-w-2xl mx-auto mb-12">
+        <span className="tag mb-4">Rezervacije</span>
+        <h1 className="text-3xl sm:text-4xl mt-3 mb-4">Piknik prostor & žar mojster</h1>
+        <p style={{ color: 'var(--color-text-muted)' }}>
+          Izberite, kaj vas zanima, izberite datum v koledarju in v nekaj korakih zaključite
+          rezervacijo — vse na enem mestu.
+        </p>
+      </div>
+
+      <div className="grid sm:grid-cols-3 gap-4 sm:gap-5">
+        <ChoiceCard
+          href="/rezervacija?tip=piknik"
+          title="Piknik prostor"
+          desc="Pokrit prostor za do 100 gostov v Skaručni — igrala, igrišča, elektrika, voda, WC."
+          image="/images/piknik-prostor.jpg"
+          imageAlt="Pokrit piknik prostor v Skaručni"
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+        <ChoiceCard
+          href="/rezervacija?tip=zar"
+          title="Žar mojster"
+          desc="Naš žar mojster pripravi hrano na vaši zabavi, poroki ali team-buildingu — kjerkoli."
+          image="/images/zar-mojster.jpg"
+          imageAlt="Žar mojster Perešuti peče meso na žaru"
+        />
+        <ChoiceCard
+          href="/rezervacija?tip=oboje"
+          title="Piknik prostor + žar mojster"
+          desc="Piknik prostor in žar mojster skupaj — s prihranki, ko oboje rezervirate naenkrat."
+          image="/images/oboje.jpg"
+          imageAlt="Priprava za piknik in žar dogodek"
+          highlight
+        />
+      </div>
+
+      <Peresutko />
     </div>
-  );
+  )
+}
+
+function ChoiceCard({
+  href,
+  title,
+  desc,
+  image,
+  imageAlt,
+  highlight,
+}: {
+  href: string
+  title: string
+  desc: string
+  image: string
+  imageAlt: string
+  highlight?: boolean
+}) {
+  return (
+    <Link
+      href={href}
+      className="group relative overflow-hidden flex flex-col justify-end min-h-[300px] p-6 hover:-translate-y-0.5 transition-transform"
+      style={{
+        borderRadius: 'var(--radius)',
+        boxShadow: 'var(--shadow-card)',
+        border: highlight ? '2px solid var(--color-accent)' : '1px solid var(--color-border)',
+      }}
+    >
+      <Image
+        src={image}
+        alt={imageAlt}
+        fill
+        sizes="(max-width: 768px) 100vw, 33vw"
+        className="object-cover scale-105 transition-transform duration-300 group-hover:scale-110"
+        style={{ filter: 'blur(1.5px) saturate(0.95)' }}
+      />
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            'linear-gradient(180deg, rgba(36,26,18,0.12) 0%, rgba(36,26,18,0.55) 55%, rgba(36,26,18,0.9) 100%)',
+        }}
+      />
+      <div className="relative z-10 flex flex-col gap-2">
+        {highlight && (
+          <span
+            className="tag self-start mb-1"
+            style={{ background: 'var(--color-accent)', color: '#fff8ef' }}
+          >
+            Prihranek
+          </span>
+        )}
+        <h2 className="text-xl" style={{ fontFamily: 'var(--font-heading)', color: '#fff8ef' }}>
+          {title}
+        </h2>
+        <p className="text-sm" style={{ color: 'rgba(255,248,239,0.88)' }}>
+          {desc}
+        </p>
+        <span className="btn btn-primary self-start mt-2">Rezerviraj →</span>
+      </div>
+    </Link>
+  )
 }

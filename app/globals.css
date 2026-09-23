@@ -1,26 +1,141 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=Inter:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
+/*
+  TEMA — opomba
+  ---------------------------------------------------------------
+  peresuti.si teče na Elementorju in ne izpostavlja svojih barvnih
+  spremenljivk/pisav v HTML-ju, ki ga lahko preberem od tu (in
+  neposreden dostop do strani je v tem okolju blokiran), zato sem
+  paleto oblikoval po vizualni identiteti strani (domača dimljena
+  mesnina, les, tradicija) namesto da bi ugibal točne HEX kode.
+  Vse je zbrano tu — v enem mestu — da jo v petih minutah uskladiva
+  s pravimi barvami, ko jih dobim (screenshot / brand guide / dostop
+  do Elementor Site Settings).
+  ---------------------------------------------------------------
+*/
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Osnovne barve */
+  --color-bg: #faf6ef;
+  --color-bg-alt: #f2ead9;
+  --color-surface: #ffffff;
+  --color-text: #2a1f17;
+  --color-text-muted: #6b5d4f;
+
+  /* Rjava/rdečkasta — dimljeno meso, les */
+  --color-primary: #8a2e1f;
+  --color-primary-dark: #6c2216;
+  --color-primary-light: #a8402c;
+
+  /* Toplo rjava (header/footer, lesen pult) */
+  --color-brown: #3c2a1e;
+  --color-brown-dark: #241a12;
+
+  /* Zlato/gorčična — poudarki, cene, aktivni elementi */
+  --color-accent: #c68a2e;
+  --color-accent-dark: #a5711f;
+
+  --color-success: #4a7c3f;
+  --color-danger: #b3261e;
+  --color-border: #e4d9c4;
+
+  --font-heading: 'Fraunces', Georgia, serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+
+  --radius: 0.75rem;
+  --shadow-card: 0 2px 10px rgba(42, 31, 23, 0.08);
+  --shadow-lifted: 0 8px 28px rgba(42, 31, 23, 0.14);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-background: var(--color-bg);
+  --color-foreground: var(--color-text);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  padding: 0;
+  margin: 0;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-heading);
+  color: var(--color-brown-dark);
+  line-height: 1.15;
+}
+
+a {
+  color: inherit;
+}
+
+.container-app {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 1.25rem;
+}
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 0.75rem 1.75rem;
+  transition: all 0.15s ease;
+  cursor: pointer;
+  border: none;
+  font-size: 0.95rem;
+}
+
+.btn-primary {
+  background: var(--color-primary);
+  color: #fff8ef;
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--color-primary-dark);
+}
+.btn-primary:disabled {
+  background: #c9b8a8;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--color-brown-dark);
+  border: 1.5px solid var(--color-border);
+}
+.btn-secondary:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  background: var(--color-bg-alt);
+  color: var(--color-brown-dark);
 }
