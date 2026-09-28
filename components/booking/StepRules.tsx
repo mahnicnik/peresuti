@@ -2,7 +2,7 @@
 
 import { useWizard } from './WizardContext'
 import { StepNav } from './ui'
-import { GENERAL_TERMS } from './constants'
+import { GENERAL_TERMS, WEATHER_TERM_PIKNIK, WEATHER_TERM_ZAR } from './constants'
 
 export default function StepRules() {
   const { pricing, acceptedRules, setAcceptedRules, acceptedTerms, setAcceptedTerms, includesPiknik, allRulesAccepted, goNext, goBack } = useWizard()
@@ -13,7 +13,7 @@ export default function StepRules() {
               <h2 className="text-2xl">Pogoji najema</h2>
               <div className="card p-5 flex flex-col gap-3">
                 <div className="flex flex-col gap-2">
-                  {GENERAL_TERMS.map((term) => (
+                  {[includesPiknik ? WEATHER_TERM_PIKNIK : WEATHER_TERM_ZAR, ...GENERAL_TERMS].map((term) => (
                     <div key={term} className="flex items-start gap-2.5 text-sm">
                       <span style={{ color: 'var(--color-accent-dark)' }}>•</span>
                       <span>{term}</span>

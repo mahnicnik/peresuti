@@ -17,8 +17,11 @@ export const STEP_LABELS: Record<Step, string> = {
 }
 
 // Splošni pogoji najema — veljajo za piknik prostor IN žar mojstra.
+export const WEATHER_TERM_ZAR =
+  'V primeru zelo slabega vremena vam lahko ponudimo drug termin, običajno med tednom oziroma ko imamo prost termin.'
+export const WEATHER_TERM_PIKNIK =
+  'V primeru slabega vremena: prostor ima možnost ogrevanja in zaprtja stranic, zato odpoved žal ni mogoča — po dogovoru pa vam lahko ponudimo drug termin, običajno med tednom oziroma ko imamo prost termin.'
 export const GENERAL_TERMS: string[] = [
-  'V primeru slabega vremena: prostor ima možnost ogrevanja in zaprtja stranic, zato odpoved žal ni mogoča — po dogovoru pa vam lahko ponudimo drug termin, običajno med tednom oziroma ko imamo prost termin.',
   'Stornacija termina najkasneje 7 dni pred terminom — kasnejša vračila niso možna.',
 ]
 

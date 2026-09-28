@@ -56,7 +56,8 @@ export default function StepQuestionnaire() {
                   type="number"
                   min={0}
                   className="input"
-                  value={vegetarianMeals}
+                  value={vegetarianMeals || ''}
+                  placeholder="0"
                   onChange={(e) => setVegetarianMeals(Math.max(0, Number(e.target.value) || 0))}
                 />
               </Field>
@@ -65,7 +66,8 @@ export default function StepQuestionnaire() {
                   type="number"
                   min={0}
                   className="input"
-                  value={veganMeals}
+                  value={veganMeals || ''}
+                  placeholder="0"
                   onChange={(e) => setVeganMeals(Math.max(0, Number(e.target.value) || 0))}
                 />
               </Field>
