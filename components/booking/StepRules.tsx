@@ -39,7 +39,7 @@ export default function StepRules() {
                       className="text-sm font-semibold pt-2 mt-1 border-t"
                       style={{ color: 'var(--color-brown-dark)', borderColor: 'var(--color-border)' }}
                     >
-                      Pravila piknik prostora
+                      Pogoji najema piknik prostora Skaručna
                     </span>
                     {pricing.spaceRules.map((rule) => (
                       <label key={rule.id} className="flex items-start gap-3 text-sm cursor-pointer">
@@ -57,6 +57,9 @@ export default function StepRules() {
                   </>
                 )}
               </div>
+              <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                Želimo, da se pri nas počutite udobno in da se zabavate brez skrbi. Prav tako pa želimo enako tudi gostom, ki bodo prevzeli piknik prostor za vami.
+              </p>
               <StepNav
                 onBack={goBack}
                 onNext={goNext}

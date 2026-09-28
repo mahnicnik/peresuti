@@ -126,14 +126,17 @@ export default function Calendar({
                 opacity: isPast || isTooFar ? 0.35 : 1,
               }}
             >
-              <span>{date.getUTCDate()}</span>
+              <span style={isBooked ? { textDecoration: 'line-through' } : undefined}>{date.getUTCDate()}</span>
               {isBooked && (
-                <span
-                  className="absolute bottom-1 text-[8px] font-bold uppercase tracking-tight"
-                  style={{ color: 'var(--color-danger)' }}
+                <svg
+                  aria-label="zasedeno"
+                  className="absolute inset-0 w-full h-full pointer-events-none"
+                  viewBox="0 0 100 100"
+                  preserveAspectRatio="none"
                 >
-                  zasedeno
-                </span>
+                  <line x1="18" y1="18" x2="82" y2="82" stroke="var(--color-danger)" strokeWidth="5" strokeLinecap="round" opacity="0.75" />
+                  <line x1="82" y1="18" x2="18" y2="82" stroke="var(--color-danger)" strokeWidth="5" strokeLinecap="round" opacity="0.75" />
+                </svg>
               )}
             </button>
           )
@@ -145,8 +148,8 @@ export default function Calendar({
           <span className="flex items-center gap-1.5">
             <span
               className="inline-block w-3 h-3 rounded"
-              style={{ background: 'var(--color-bg-alt)', border: '1px solid var(--color-border)' }}
-            />
+              style={{ background: 'var(--color-bg-alt)', border: '1px solid var(--color-border)', textAlign: 'center', lineHeight: '10px', fontSize: '10px', color: 'var(--color-danger)' }}
+            >✕</span>
             Piknik prostor zaseden
           </span>
           <span className="flex items-center gap-1.5">

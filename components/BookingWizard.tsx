@@ -28,7 +28,9 @@ export default function BookingWizard({ tip }: { tip: 'piknik' | 'zar' | 'oboje'
 }
 
 function WizardLayout() {
-  const { step, selectedDate, eventStartTime, eventEndTime, visibleSteps, breakdown } = useWizard()
+  const { tip, step, selectedDate, foodReadyTime, includesZar, visibleSteps, breakdown } = useWizard()
+  const title =
+    tip === 'piknik' ? 'Rezerviraj piknik prostor' : tip === 'zar' ? 'Rezerviraj žar mojstra' : 'Rezerviraj piknik prostor in žar mojstra'
 
   return (
     <div className="container-app pt-6 pb-8 sm:pt-8 sm:pb-12">
@@ -39,6 +41,7 @@ function WizardLayout() {
       >
         ← Nazaj na izbiro ponudbe
       </Link>
+      <h1 className="text-2xl sm:text-3xl mb-4">{title}</h1>
       <StepProgress step={step} steps={visibleSteps} />
 
       <div className="grid lg:grid-cols-[1fr_320px] gap-8 mt-6">
@@ -60,13 +63,7 @@ function WizardLayout() {
                 {new Date(`${selectedDate}T00:00:00Z`).toLocaleDateString('sl-SI', {
                   weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC',
                 })}
-                {eventStartTime && (
-                  <>
-                    {' · '}
-                    {eventStartTime}
-                    {eventEndTime ? ` – ${eventEndTime}` : ''}
-                  </>
-                )}
+                {includesZar && foodReadyTime && <>{' · hrana ob '}{foodReadyTime}</>}
               </p>
             )}
             {breakdown ? (
@@ -84,6 +81,18 @@ function WizardLayout() {
                   <span>Skupaj</span>
                   <span>{breakdown.total.toFixed(2)} €</span>
                 </div>
+                {breakdown.payLater > 0 && (
+                  <div className="flex flex-col gap-1 pt-2 text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                    <div className="flex justify-between gap-2">
+                      <span>Plačilo ob rezervaciji</span>
+                      <span className="whitespace-nowrap font-semibold" style={{ color: 'var(--color-text)' }}>{breakdown.payNow.toFixed(2)} €</span>
+                    </div>
+                    <div className="flex justify-between gap-2">
+                      <span>Ostanek za žar mojstra (plačilo kasneje)</span>
+                      <span className="whitespace-nowrap">{breakdown.payLater.toFixed(2)} €</span>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>

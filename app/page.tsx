@@ -7,7 +7,7 @@ export default function HomePage() {
     <div className="container-app py-12 sm:py-16">
       <div className="text-center max-w-2xl mx-auto mb-12">
         <span className="tag mb-4">Rezervacije</span>
-        <h1 className="text-3xl sm:text-4xl mt-3 mb-4">Piknik prostor & žar mojster</h1>
+        <h1 className="text-3xl sm:text-4xl mt-3 mb-4">Najemi piknik prostor ali žar mojstra</h1>
         <p style={{ color: 'var(--color-text-muted)' }}>
           Izberite, kaj vas zanima, izberite datum v koledarju in v nekaj korakih zaključite
           rezervacijo — vse na enem mestu.
@@ -18,7 +18,7 @@ export default function HomePage() {
         <ChoiceCard
           href="/rezervacija?tip=piknik"
           title="Piknik prostor"
-          desc="Pokrit prostor za do 100 gostov v Skaručni — igrala, igrišča, elektrika, voda, WC."
+          desc="Pokrit piknik prostor za do 250 oseb v Skaručni — igrala, igrišča, elektrika, voda, WC."
           image="/images/piknik-prostor.jpg"
           imageAlt="Pokrit piknik prostor v Skaručni"
         />

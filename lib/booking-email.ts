@@ -1,10 +1,10 @@
 import type { Database } from '@/lib/database.types'
-import type { PriceLine } from '@/lib/pricing'
+import type { PriceBreakdown } from '@/lib/pricing'
 
 type Booking = Database['public']['Tables']['bookings']['Row']
 
-export function renderNarocilnicaHtml(booking: Booking, lines: PriceLine[]): string {
-  const rows = lines
+export function renderNarocilnicaHtml(booking: Booking, breakdown: PriceBreakdown): string {
+  const rows = breakdown.lines
     .map(
       (l) =>
         `<tr><td style="padding:4px 0;color:#3c2a1e;">${escapeHtml(l.label)}</td><td style="padding:4px 0;text-align:right;color:#3c2a1e;">${l.amount.toFixed(2)} €</td></tr>`
@@ -22,13 +22,15 @@ export function renderNarocilnicaHtml(booking: Booking, lines: PriceLine[]): str
       ${booking.includes_zar ? '<li>Najem žar mojstra</li>' : ''}
     </ul>
     <p><strong>Datum:</strong> ${booking.booking_date}</p>
-    ${booking.event_start_time ? `<p><strong>Želeni čas:</strong> ${booking.event_start_time.slice(0, 5)}${booking.event_end_time ? ` – ${booking.event_end_time.slice(0, 5)}` : ''}</p>` : ''}
+    ${booking.event_start_time ? `<p><strong>Hrana pripravljena ob:</strong> ${booking.event_start_time.slice(0, 5)}</p>` : ''}
+    ${booking.location ? `<p><strong>Lokacija:</strong> ${escapeHtml(booking.location)}</p>` : ''}
     ${booking.guest_count ? `<p><strong>Število gostov:</strong> ${booking.guest_count}</p>` : ''}
-    ${meatNotes ? `<p><strong>Opombe / želje glede hrane:</strong> ${escapeHtml(meatNotes)}</p>` : ''}
+    ${meatNotes ? `<p><strong>Opombe:</strong> ${escapeHtml(meatNotes)}</p>` : ''}
 
     <table style="width:100%;border-collapse:collapse;margin-top:16px;border-top:1px solid #e4d9c4;padding-top:8px;">
       ${rows}
       <tr><td style="padding-top:8px;font-weight:bold;">Skupaj</td><td style="padding-top:8px;font-weight:bold;text-align:right;">${(booking.price_total ?? 0).toFixed(2)} €</td></tr>
+      ${breakdown.payLater > 0 ? `<tr><td style="padding-top:4px;">Ob rezervaciji (piknik prostor + ara žar mojster)</td><td style="padding-top:4px;text-align:right;">${breakdown.payNow.toFixed(2)} €</td></tr><tr><td>Ostanek (žar mojster, plačilo kasneje)</td><td style="text-align:right;">${breakdown.payLater.toFixed(2)} €</td></tr>` : ''}
     </table>
 
     <h2 style="font-size:16px;margin-top:24px;">Podatki naročnika</h2>

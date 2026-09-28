@@ -4,7 +4,7 @@ import { useWizard } from './WizardContext'
 import { Field } from './ui'
 
 export default function StepCustomer() {
-  const { entityType, setEntityType, customerName, setCustomerName, customerEmail, setCustomerEmail, customerPhone, setCustomerPhone, companyName, setCompanyName, companyVat, setCompanyVat, companyAddress, setCompanyAddress, submitting, submitError, goBack, submitBooking } = useWizard()
+  const { breakdown, entityType, setEntityType, customerName, setCustomerName, customerEmail, setCustomerEmail, customerPhone, setCustomerPhone, companyName, setCompanyName, companyVat, setCompanyVat, companyAddress, setCompanyAddress, submitting, submitError, goBack, submitBooking } = useWizard()
 
   return (
             <div className="flex flex-col gap-5">
@@ -39,7 +39,9 @@ export default function StepCustomer() {
 
                 <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
                   {entityType === 'fizicna'
-                    ? 'Po oddaji vas bomo preusmerili na varno spletno plačilo.'
+                    ? breakdown && breakdown.payLater > 0
+                      ? `Po oddaji vas preusmerimo na varno spletno plačilo ${breakdown.payNow.toFixed(2)} € (piknik prostor v celoti in 100 € are za žar mojstra). Ostanek ${breakdown.payLater.toFixed(2)} € za žar mojstra plačate kasneje.`
+                      : 'Po oddaji vas bomo preusmerili na varno spletno plačilo.'
                     : 'Po oddaji vam pošljemo naročilnico po e-pošti; kopijo prejmemo tudi mi.'}
                 </p>
 

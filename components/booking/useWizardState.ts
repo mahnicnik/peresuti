@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { computePriceBreakdown, type BookingSelection } from '@/lib/pricing'
+import { computePriceBreakdown, isWinterDate, type BookingSelection } from '@/lib/pricing'
 import { ALL_STEPS, type Step, type PricingApiResponse } from './constants'
 
 export function useWizardState(tip: 'piknik' | 'zar' | 'oboje') {
@@ -32,17 +32,15 @@ export function useWizardState(tip: 'piknik' | 'zar' | 'oboje') {
   // --- form state ---
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [guestCount, setGuestCount] = useState<number | ''>('')
-  const [eventStartTime, setEventStartTime] = useState('')
-  const [eventEndTime, setEventEndTime] = useState('')
+  // Ura, ko mora biti hrana pripravljena (samo žar mojster)
+  const [foodReadyTime, setFoodReadyTime] = useState('')
   const [meatNotes, setMeatNotes] = useState('')
   const [vegetarianMeals, setVegetarianMeals] = useState(0)
   const [veganMeals, setVeganMeals] = useState(0)
+  // Poštna številka lokacije dogodka (null = na piknik prostoru)
   const [location, setLocation] = useState<string | null>(null)
-
-  // Meni žar mojstra po kategorijah — trenutno samo za izbiro/izgled, izbrane postavke
-  // gredo v opombe rezervacije (polna ponudba s cenami pride kasneje).
-  const [menuSelections, setMenuSelections] = useState<Record<string, boolean>>({})
-  const [menuSpecialRequests, setMenuSpecialRequests] = useState('')
+  const [menuType, setMenuType] = useState<'poletni' | 'zimski'>('poletni')
+  const [extras, setExtras] = useState<string[]>([])
 
   const [acceptedRules, setAcceptedRules] = useState<Record<string, boolean>>({})
   const [acceptedTerms, setAcceptedTerms] = useState(false)
@@ -79,12 +77,15 @@ export function useWizardState(tip: 'piknik' | 'zar' | 'oboje') {
       includesPiknik,
       includesZar,
       guestCount: typeof guestCount === 'number' ? guestCount : null,
-      location: includesZar ? location : null,
+      location: includesZar && !includesPiknik ? location : null,
       vegetarianMeals,
       veganMeals,
       sleepNights,
+      extras: includesPiknik ? extras : [],
     }
-  }, [selectedDate, includesPiknik, includesZar, guestCount, location, vegetarianMeals, veganMeals, sleepNights])
+  }, [selectedDate, includesPiknik, includesZar, guestCount, location, vegetarianMeals, veganMeals, sleepNights, extras])
+
+  const winterMenuAvailable = selectedDate ? isWinterDate(selectedDate) : false
 
   const breakdown = useMemo(() => {
     if (!pricing || !selection) return null
@@ -107,17 +108,6 @@ export function useWizardState(tip: 'piknik' | 'zar' | 'oboje') {
     setSubmitting(true)
     setSubmitError(null)
     try {
-      // Izbrane postavke menija (žar mojster) in posebne želje gredo skupaj z opombami —
-      // meni trenutno nima ločenega polja na strežniku (glej komentar pri MENU_CATEGORIES).
-      const selectedMenuItems = Object.keys(menuSelections).filter((k) => menuSelections[k])
-      const combinedNotes = [
-        selectedMenuItems.length ? `Izbran meni: ${selectedMenuItems.join(', ')}.` : '',
-        menuSpecialRequests ? `Posebne želje glede menija: ${menuSpecialRequests}` : '',
-        meatNotes,
-      ]
-        .filter(Boolean)
-        .join(' ')
-
       const res = await fetch('/api/booking', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -126,13 +116,13 @@ export function useWizardState(tip: 'piknik' | 'zar' | 'oboje') {
           includesPiknik: baseIncludesPiknik,
           includesZar: baseIncludesZar,
           guestCount: typeof guestCount === 'number' ? guestCount : null,
-          eventStartTime: eventStartTime || null,
-          eventEndTime: eventEndTime || null,
-          meatPreferences: { notes: combinedNotes },
+          foodReadyTime: includesZar && foodReadyTime ? foodReadyTime : null,
+          menuType: winterMenuAvailable ? menuType : 'poletni',
+          meatPreferences: { notes: meatNotes },
           vegetarianMeals,
           veganMeals,
-          location: includesZar ? location : null,
-          upsell: { sleepNights, addZar, addPiknik },
+          location: includesZar && !includesPiknik ? location : null,
+          upsell: { sleepNights, addZar, addPiknik, extras: includesPiknik ? extras : [] },
           acceptedRuleIds: Object.keys(acceptedRules).filter((k) => acceptedRules[k]),
           entityType,
           customerName,
@@ -167,5 +157,5 @@ export function useWizardState(tip: 'piknik' | 'zar' | 'oboje') {
 
 
 
-  return { tip, step, setStep, pricing, setPricing, bookedPiknikDates, setBookedPiknikDates, loadError, setLoadError, selectedDate, setSelectedDate, guestCount, setGuestCount, eventStartTime, setEventStartTime, eventEndTime, setEventEndTime, meatNotes, setMeatNotes, vegetarianMeals, setVegetarianMeals, veganMeals, setVeganMeals, location, setLocation, menuSelections, setMenuSelections, menuSpecialRequests, setMenuSpecialRequests, acceptedRules, setAcceptedRules, acceptedTerms, setAcceptedTerms, addZar, setAddZar, addPiknik, setAddPiknik, sleepNights, setSleepNights, entityType, setEntityType, customerName, setCustomerName, customerEmail, setCustomerEmail, customerPhone, setCustomerPhone, companyName, setCompanyName, companyVat, setCompanyVat, companyAddress, setCompanyAddress, submitting, setSubmitting, submitError, setSubmitError, router, baseIncludesPiknik, baseIncludesZar, includesPiknik, includesZar, isPiknikOnly, isZarOnly, piknikFreeOnDate, visibleSteps, selection, breakdown, allRulesAccepted, goNext, goBack, submitBooking }
+  return { tip, step, setStep, pricing, setPricing, bookedPiknikDates, setBookedPiknikDates, loadError, setLoadError, selectedDate, setSelectedDate, guestCount, setGuestCount, foodReadyTime, setFoodReadyTime, menuType, setMenuType, extras, setExtras, winterMenuAvailable, meatNotes, setMeatNotes, vegetarianMeals, setVegetarianMeals, veganMeals, setVeganMeals, location, setLocation, acceptedRules, setAcceptedRules, acceptedTerms, setAcceptedTerms, addZar, setAddZar, addPiknik, setAddPiknik, sleepNights, setSleepNights, entityType, setEntityType, customerName, setCustomerName, customerEmail, setCustomerEmail, customerPhone, setCustomerPhone, companyName, setCompanyName, companyVat, setCompanyVat, companyAddress, setCompanyAddress, submitting, setSubmitting, submitError, setSubmitError, router, baseIncludesPiknik, baseIncludesZar, includesPiknik, includesZar, isPiknikOnly, isZarOnly, piknikFreeOnDate, visibleSteps, selection, breakdown, allRulesAccepted, goNext, goBack, submitBooking }
 }

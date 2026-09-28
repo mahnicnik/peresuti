@@ -63,7 +63,7 @@ export const PERESUTKO_TREE: Record<string, PeresutkoNode> = {
   },
   space_capacity: {
     id: 'space_capacity',
-    bot: ['Pokrit prostor sprejme do 100 gostov. Na voljo so tudi otroška igrala, mini nogometno in odbojkarsko igrišče.'],
+    bot: ['Pokrit piknik prostor sprejme do 250 oseb (sedišč je za 70 oseb). Na voljo so tudi otroška igrala, mini nogometno in odbojkarsko igrišče.'],
     final: true,
     options: [BACK_SPACE],
   },

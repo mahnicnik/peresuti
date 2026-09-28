@@ -18,31 +18,29 @@ export const STEP_LABELS: Record<Step, string> = {
 
 // Splošni pogoji najema — veljajo za piknik prostor IN žar mojstra.
 export const GENERAL_TERMS: string[] = [
-  'V primeru zelo slabega vremena se najde najboljši možen naslednji datum.',
+  'V primeru slabega vremena: prostor ima možnost ogrevanja in zaprtja stranic, zato odpoved žal ni mogoča — po dogovoru pa vam lahko ponudimo drug termin, običajno med tednom oziroma ko imamo prost termin.',
   'Stornacija termina najkasneje 7 dni pred terminom — kasnejša vračila niso možna.',
 ]
 
-// Meni žar mojstra — trenutno samo za izbiro/izgled (klik po kategorijah); polna ponudba
-// s cenami in končno logiko bo dodana kasneje. Izbrane postavke gredo v opombe rezervacije.
-export const MENU_CATEGORIES: { key: string; label: string; items: string[] }[] = [
-  {
-    key: 'meso',
-    label: 'Meso',
-    items: [
-      'Mešano meso (klobase, pleskavice, vratovina, ražnjiči)',
-      'Puranje meso',
-      'Jagnjetina',
-      'Vegetarijanska alternativa',
-    ],
-  },
-  {
-    key: 'priloga',
-    label: 'Priloge',
-    items: ['Krompir po domače', 'Mešana solata', 'Zelje', 'Pečena sezonska zelenjava', 'Kruh'],
-  },
-  {
-    key: 'sladica',
-    label: 'Sladice',
-    items: ['Palačinke', 'Sadna kupa', 'Domača peciva'],
-  },
+// Klasična ponudba žar mojstra (besedilo s strani naročnika, prikazano v vprašalniku).
+export const CLASSIC_OFFER = `Naša klasična ponudba vsebuje več vrst mesa na žaru (čevapčiči, vratovina, piščanec na žaru, carsko meso, žar klobase, ražnjiči), šopsko in paradižnikovo solato z mocarelo, pečen krompirček, pohanega piščanca in cvetačo, sezonsko zelenjavo na žaru, šampinjone na žaru, sir za žar, porcijske omake (kečap, majoneza, zenf, tatarska), lepinje, pribor in krožnike.`
+
+export const CLASSIC_OFFER_DETAILS: string[] = [
+  'V ponudbi je vključena vsa oprema: servirne mize, servirni pribor, grelni šefingi, rezerva mesa (sporočiti morate ob pričetku peke), peč na oglje, po potrebi šotor za peko, električni podaljški in friteza.',
+  'Ob večjem številu oseb, kot je bilo predhodno dogovorjeno, žal ne moremo zagotoviti dovolj hrane za vse, zato prosimo za čim bolj točen podatek — lahko pa s seboj prinesemo rezervo.',
+  'Cenik velja za lokacije, oddaljene do 30 km od našega sedeža podjetja, sicer se zaračuna še kilometrina 1 € na km.',
+  'Postavitev, peka in pospravljanje običajno trajajo 2 uri: na prostor pridemo cca 60–90 minut preden želite imeti hrano pripravljeno in končamo običajno 30 minut po pričetku hrane. Priporočamo, da je hrana pripravljena 1 uro po pričetku dogodka. Na samem dogodku žal ne moremo spreminjati želenega časa priprave, saj imamo dnevno več piknikov.',
+  'Za pripravo hrane potrebujemo enofazni električni priključek 3,5 kW, tekočo vodo in parkirišče v bližini mesta, kjer bo kuhar (do 30 m). V nasprotnem primeru nam to sporočite in vse pripravimo sami (baterija, zalogovnik vode, dodatna pomoč pri nošenju opreme), sicer ne moremo pripraviti vseh jedi.',
+  'Po peki lahko pri vas pustimo grelne posode, v katerih ostane hrana topla še nekaj ur. Posodo lahko vrnete vsako soboto na tržnico Medvode, Jesenice, Lesce, na naš piknik prostor Skaručna (5 minut iz Ljubljane-Trzin) ali po dogovoru. Če je peka na našem piknik prostoru, posode samo pustite in jih odpeljemo mi.',
+]
+
+// Informacije o piknik prostoru (prikazano v koraku izbire datuma).
+export const PIKNIK_INFO: { title: string; text: string }[] = [
+  { title: 'Najem', text: 'Najem prostora je od 10.00 zjutraj do 9.00 naslednjega dne. V najem ni vključen odvoz smeti.' },
+  { title: 'Oprema', text: 'Tekoča voda (ni pitna), elektrika, ločen prostor z WC-jem, prostor za kuhinjo s plinskim žarom (plin vključen) in žarom na oglje (oglje ni vključeno), igrišče za mali nogomet, odbojka na pesku, 2 hladilnika, skrinja in sedišča za 70 oseb.' },
+  { title: 'Hlajenje', text: 'Hladilnika in skrinja so prižgani in ohlajeni že pred vašim prihodom. Ob visokih temperaturah se poln hladilnik pijače hladi več ur, zato predlagamo uporabo skrinje.' },
+  { title: 'Prostor za spanje', text: '2 sobi in WC s tušem (1. soba: 2 postelji 200×160 cm; 2. soba: postelja 200×160 cm in raztegljiv kavč). Oddaja se samo v kompletu za 90 € na noč, vključeni so 3 kompleti posteljnine. Sobe lahko rezervirate tudi šele na dan zabave — takrat vam sporočimo kodo za ključe, plačilo pa oddate v gotovini v nabiralnik desno od vrat v kuhinjo.' },
+  { title: 'Lokacija', text: 'V bližini vasi Skaručna. V Google Maps (ali drug program) vpišite »Piknik prostor Skaručna« in navigacija vas pripelje natančno do lokacije.' },
+  { title: 'Luči', text: 'Navodila za prižig luči so obešena na tabli ob hladilniku.' },
+  { title: 'Parkirišče', text: 'Parkirišč je veliko — prosimo, parkirajte znotraj rdeče obarvanih predelov na zemljevidu.' },
 ]

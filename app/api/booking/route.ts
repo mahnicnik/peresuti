@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
 import { bookingRequestSchema } from '@/lib/booking-schema'
-import { computePriceBreakdown, type PricingReferenceData } from '@/lib/pricing'
+import { computePriceBreakdown, kmChargeForPostalCode, type PricingReferenceData } from '@/lib/pricing'
 import { getStripe } from '@/lib/stripe'
 import { getResend } from '@/lib/resend'
 import { renderNarocilnicaHtml } from '@/lib/booking-email'
@@ -51,9 +51,20 @@ export async function POST(req: Request) {
       vegetarianMeals: body.vegetarianMeals,
       veganMeals: body.veganMeals,
       sleepNights: body.upsell.sleepNights,
+      extras: finalIncludesPiknik ? body.upsell.extras : [],
     },
     ref
   )
+  const kmCharge = finalIncludesZar ? kmChargeForPostalCode(body.location) : null
+  if (finalIncludesZar && body.location && !kmCharge) {
+    return NextResponse.json({ error: 'Neznana poštna številka' }, { status: 400 })
+  }
+  const notes = [
+    finalIncludesZar ? `Meni: ${body.menuType}.` : '',
+    body.meatPreferences.notes,
+  ]
+    .filter(Boolean)
+    .join(' ')
 
   // --- Ustvari rezervacijo prek varnega RPC-ja (edina pot do tabele bookings) ---
   const { data: booking, error: createError } = await supabase.rpc('create_booking', {
@@ -61,15 +72,18 @@ export async function POST(req: Request) {
     p_includes_piknik: finalIncludesPiknik,
     p_includes_zar: finalIncludesZar,
     p_guest_count: body.guestCount,
-    p_meat_preferences: { notes: body.meatPreferences.notes },
-    p_location: body.location,
-    p_km_distance: ref.kmPricing.find((k) => k.location === body.location)?.distance_km ?? null,
+    p_meat_preferences: { notes, menuType: finalIncludesZar ? body.menuType : null },
+    p_location: kmCharge ? `${body.location} ${kmCharge.place}` : null,
+    p_km_distance: kmCharge?.km ?? null,
     p_upsell_selections: {
       sleepNights: body.upsell.sleepNights,
       addZar: body.upsell.addZar,
       addPiknik: body.upsell.addPiknik,
       vegetarianMeals: body.vegetarianMeals,
       veganMeals: body.veganMeals,
+      extras: body.upsell.extras,
+      payNow: breakdown.payNow,
+      payLater: breakdown.payLater,
       acceptedRuleIds: body.acceptedRuleIds,
     },
     p_entity_type: body.entityType,
@@ -81,8 +95,8 @@ export async function POST(req: Request) {
     p_company_address: body.companyAddress || null,
     p_price_total: breakdown.total,
     p_notes: null,
-    p_event_start_time: body.eventStartTime || null,
-    p_event_end_time: body.eventEndTime || null,
+    p_event_start_time: finalIncludesZar ? body.foodReadyTime : null,
+    p_event_end_time: null,
   })
 
   if (createError || !booking) {
@@ -108,7 +122,7 @@ export async function POST(req: Request) {
       })
     }
 
-    const html = renderNarocilnicaHtml(booking, breakdown.lines)
+    const html = renderNarocilnicaHtml(booking, breakdown)
     const subject = `Naročilnica — ${booking.company_name ?? booking.customer_name} — ${booking.booking_date}`
 
     await Promise.all([
@@ -136,7 +150,12 @@ export async function POST(req: Request) {
   // line item z že izračunanim skupnim zneskom (razčlenitev je stranka že videla v aplikaciji,
   // enako pa jo dobi tudi na prejetem računu iz računko.si).
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
-  const itemDescription = breakdown.lines.map((l) => `${l.label}: ${l.amount.toFixed(2)} €`).join(' · ')
+  const itemDescription = [
+    ...breakdown.lines.map((l) => `${l.label}: ${l.amount.toFixed(2)} €`),
+    breakdown.payLater > 0 ? `Plačilo zdaj: ${breakdown.payNow.toFixed(2)} € (ostanek ${breakdown.payLater.toFixed(2)} € za žar mojstra plačate kasneje)` : '',
+  ]
+    .filter(Boolean)
+    .join(' · ')
   const session = await stripe.checkout.sessions.create({
     mode: 'payment',
     payment_method_types: ['card'],
@@ -146,10 +165,12 @@ export async function POST(req: Request) {
         price_data: {
           currency: 'eur',
           product_data: {
-            name: `Rezervacija Perešuti — ${booking.booking_date}`,
+            name: breakdown.payLater > 0
+              ? `Rezervacija Perešuti — ${booking.booking_date} (plačilo ob rezervaciji)`
+              : `Rezervacija Perešuti — ${booking.booking_date}`,
             description: itemDescription.slice(0, 500),
           },
-          unit_amount: Math.round(breakdown.total * 100),
+          unit_amount: Math.round(breakdown.payNow * 100),
         },
         quantity: 1,
       },
