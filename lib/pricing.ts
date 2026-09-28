@@ -60,7 +60,9 @@ export function isWinterDate(dateStr: string): boolean {
 export function kmChargeForPostalCode(code: string | null): { place: string; km: number; amount: number } | null {
   const hit = lookupPostalCode(code)
   if (!hit) return null
-  return { ...hit, amount: hit.km > KM_FREE_RADIUS ? hit.km * KM_PRICE : 0 }
+  // Ljubljana (vse njene poštne številke) je brez kilometrine
+  const free = hit.km <= KM_FREE_RADIUS || hit.place.startsWith('Ljubljana')
+  return { ...hit, amount: free ? 0 : hit.km * KM_PRICE }
 }
 
 /** Vrne 'pon_cet' | 'pet_ned' | 'sobota' glede na dan v tednu izbranega datuma. */
@@ -140,13 +142,13 @@ export function computePriceBreakdown(
     }
     const vegAddon = ref.mealAddons.find((m) => m.key === 'vegetarian_meal')
     const veganAddon = ref.mealAddons.find((m) => m.key === 'vegan_meal')
-    if (vegAddon && sel.vegetarianMeals > 0) {
+    if (vegAddon && vegAddon.unit_price > 0 && sel.vegetarianMeals > 0) {
       zarLines.push({
         label: `Vegetarijanski obroki (${sel.vegetarianMeals} × ${vegAddon.unit_price} €)`,
         amount: sel.vegetarianMeals * vegAddon.unit_price,
       })
     }
-    if (veganAddon && sel.veganMeals > 0) {
+    if (veganAddon && veganAddon.unit_price > 0 && sel.veganMeals > 0) {
       zarLines.push({
         label: `Veganski obroki (${sel.veganMeals} × ${veganAddon.unit_price} €)`,
         amount: sel.veganMeals * veganAddon.unit_price,

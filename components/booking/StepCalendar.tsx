@@ -30,10 +30,10 @@ export default function StepCalendar() {
 
 function PiknikInfo() {
   return (
-    <details className="card p-4 text-sm" style={{ background: 'var(--color-bg-alt)' }}>
-      <summary className="cursor-pointer font-semibold" style={{ color: 'var(--color-brown-dark)' }}>
+    <div className="card p-4 text-sm" style={{ background: 'var(--color-bg-alt)' }}>
+      <h3 className="font-semibold" style={{ color: 'var(--color-brown-dark)' }}>
         Piknik prostor Skaručna — kaj je vključeno in kako do nas
-      </summary>
+      </h3>
       <dl className="flex flex-col gap-2.5 mt-3">
         {PIKNIK_INFO.map((i) => (
           <div key={i.title}>
@@ -49,6 +49,6 @@ function PiknikInfo() {
         height={706}
         className="mt-3 rounded-lg w-full h-auto"
       />
-    </details>
+    </div>
   )
 }

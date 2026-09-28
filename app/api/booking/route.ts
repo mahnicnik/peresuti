@@ -5,6 +5,7 @@ import { computePriceBreakdown, kmChargeForPostalCode, type PricingReferenceData
 import { getStripe } from '@/lib/stripe'
 import { getResend } from '@/lib/resend'
 import { renderNarocilnicaHtml } from '@/lib/booking-email'
+import { sendBookingInfoEmail } from '@/lib/info-email'
 
 export async function POST(req: Request) {
   const supabase = createServerClient()
@@ -50,7 +51,7 @@ export async function POST(req: Request) {
       location: body.location,
       vegetarianMeals: body.vegetarianMeals,
       veganMeals: body.veganMeals,
-      sleepNights: body.upsell.sleepNights,
+      sleepNights: Math.min(body.upsell.sleepNights, 1),
       extras: finalIncludesPiknik ? body.upsell.extras : [],
     },
     ref
@@ -76,7 +77,7 @@ export async function POST(req: Request) {
     p_location: kmCharge ? `${body.location} ${kmCharge.place}` : null,
     p_km_distance: kmCharge?.km ?? null,
     p_upsell_selections: {
-      sleepNights: body.upsell.sleepNights,
+      sleepNights: Math.min(body.upsell.sleepNights, 1),
       addZar: body.upsell.addZar,
       addPiknik: body.upsell.addPiknik,
       vegetarianMeals: body.vegetarianMeals,
@@ -128,6 +129,12 @@ export async function POST(req: Request) {
     await Promise.all([
       resend.emails.send({ from: fromEmail, to: ownerEmail, subject, html }),
       resend.emails.send({ from: fromEmail, to: booking.customer_email, subject: `Vaša naročilnica — Perešuti (${booking.booking_date})`, html }),
+      sendBookingInfoEmail({
+        to: booking.customer_email,
+        date: booking.booking_date,
+        includesPiknik: finalIncludesPiknik,
+        includesZar: finalIncludesZar,
+      }),
     ])
 
     return NextResponse.json({ success: true, entityType: 'pravna', bookingId: booking.id })
@@ -175,7 +182,12 @@ export async function POST(req: Request) {
         quantity: 1,
       },
     ],
-    metadata: { booking_id: booking.id },
+    metadata: {
+      booking_id: booking.id,
+      booking_date: booking.booking_date,
+      includes_piknik: finalIncludesPiknik ? '1' : '0',
+      includes_zar: finalIncludesZar ? '1' : '0',
+    },
     success_url: `${appUrl}/rezervacija/potrditev?status=success&booking=${booking.id}`,
     cancel_url: `${appUrl}/rezervacija/potrditev?status=cancelled&booking=${booking.id}`,
   })

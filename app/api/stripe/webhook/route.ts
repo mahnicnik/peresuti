@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getStripe } from '@/lib/stripe'
 import { createServerClient } from '@/lib/supabase/server'
+import { sendBookingInfoEmail } from '@/lib/info-email'
 
 export async function POST(req: Request) {
   const stripe = getStripe()
@@ -26,7 +27,12 @@ export async function POST(req: Request) {
   }
 
   if (event.type === 'checkout.session.completed') {
-    const session = event.data.object as { id: string }
+    const session = event.data.object as {
+      id: string
+      customer_email: string | null
+      customer_details?: { email?: string | null } | null
+      metadata?: Record<string, string> | null
+    }
     const supabase = createServerClient()
 
     const { error } = await supabase.rpc('mark_booking_paid', {
@@ -38,6 +44,17 @@ export async function POST(req: Request) {
       // Ne vračamo 500 za "booking not found" primere, da Stripe ne pošilja neskončnih retryjev
       // za dogodke, ki niso naši (druga aplikacija na istem Stripe računu ipd.)
       console.error('mark_booking_paid failed:', error.message)
+    } else {
+      const to = session.customer_details?.email ?? session.customer_email
+      const m = session.metadata ?? {}
+      if (to && m.booking_date) {
+        await sendBookingInfoEmail({
+          to,
+          date: m.booking_date,
+          includesPiknik: m.includes_piknik === '1',
+          includesZar: m.includes_zar === '1',
+        })
+      }
     }
   }
 

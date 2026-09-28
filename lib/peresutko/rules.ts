@@ -126,7 +126,7 @@ export const PERESUTKO_TREE: Record<string, PeresutkoNode> = {
   diet: {
     id: 'diet',
     bot: [
-      'Poskrbimo tudi za vegetarijanske in veganske goste — vsak tak obrok je po 0,50 € na osebo, izberete pa jih ob rezervaciji v vprašalniku.',
+      'Poskrbimo tudi za vegetarijanske in veganske goste — brez doplačila, število takih obrokov vnesete ob rezervaciji v vprašalniku.',
       'Za posebne alergije ali želje nam pustite opombo pri rezervaciji — po povpraševanju se dogovorimo za prilagojeno ponudbo.',
     ],
     final: true,

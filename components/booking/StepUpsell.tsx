@@ -1,7 +1,7 @@
 'use client'
 
 import { useWizard } from './WizardContext'
-import { Field, StepNav, UpsellCard } from './ui'
+import { StepNav, UpsellCard } from './ui'
 
 export default function StepUpsell() {
   const { pricing, extras, setExtras, addZar, setAddZar, addPiknik, setAddPiknik, sleepNights, setSleepNights, includesPiknik, isPiknikOnly, isZarOnly, piknikFreeOnDate, goNext, goBack } = useWizard()
@@ -35,22 +35,9 @@ export default function StepUpsell() {
               {(includesPiknik) && (
                 <UpsellCard
                   title="Prenočišče na prostoru"
-                  description="2 sobi (2 postelji 160×200 cm; postelja 160×200 cm + raztegljiv kavč) in WC s tušem, 3 kompleti posteljnine — 90 € na noč."
+                  description="2 sobi (2 postelji 160×200 cm; postelja 160×200 cm + raztegljiv kavč) in WC s tušem, 3 kompleti posteljnine — 90 € za eno noč (čas najema piknik prostora)."
                   checked={sleepNights > 0}
                   onChange={(v) => setSleepNights(v ? 1 : 0)}
-                  extra={
-                    sleepNights > 0 && (
-                      <Field label="Število noči">
-                        <input
-                          type="number"
-                          min={1}
-                          className="input !w-24"
-                          value={sleepNights}
-                          onChange={(e) => setSleepNights(Math.max(1, Number(e.target.value) || 1))}
-                        />
-                      </Field>
-                    )
-                  }
                 />
               )}
 

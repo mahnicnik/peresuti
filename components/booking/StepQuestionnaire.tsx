@@ -5,6 +5,12 @@ import { Field, StepNav } from './ui'
 import { CLASSIC_OFFER, CLASSIC_OFFER_DETAILS } from './constants'
 import { kmChargeForPostalCode, KM_FREE_RADIUS, PIKNIK_SURCHARGE_GUESTS } from '@/lib/pricing'
 
+// Ure na 30 minut natančno (10:00 – 23:30)
+const TIME_SLOTS = Array.from({ length: 28 }, (_, i) => {
+  const m = 600 + i * 30
+  return `${String(Math.floor(m / 60)).padStart(2, '0')}:${m % 60 ? '30' : '00'}`
+})
+
 export default function StepQuestionnaire() {
   const { pricing, guestCount, setGuestCount, foodReadyTime, setFoodReadyTime, meatNotes, setMeatNotes, vegetarianMeals, setVegetarianMeals, veganMeals, setVeganMeals, location, setLocation, menuType, setMenuType, winterMenuAvailable, includesPiknik, includesZar, goNext, goBack } = useWizard()
   if (!pricing) return null
@@ -79,12 +85,16 @@ export default function StepQuestionnaire() {
             )}
 
             <Field label="Ob kateri uri želite imeti hrano pripravljeno? *">
-              <input
-                type="time"
+              <select
                 className="input !w-40"
                 value={foodReadyTime}
                 onChange={(e) => setFoodReadyTime(e.target.value)}
-              />
+              >
+                <option value="">Izberite uro</option>
+                {TIME_SLOTS.map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
             </Field>
             <p className="text-xs -mt-2" style={muted}>
               Po dogovoru lahko uro kasneje tudi spremenite, v primeru, da imamo termin na razpolago.
@@ -146,16 +156,16 @@ export default function StepQuestionnaire() {
               ) : (
                 <p style={muted}>{CLASSIC_OFFER}</p>
               )}
-              <details className="text-xs" style={muted}>
-                <summary className="cursor-pointer font-medium" style={{ color: 'var(--color-accent-dark)' }}>
+              <div className="text-xs" style={muted}>
+                <span className="font-medium" style={{ color: 'var(--color-accent-dark)' }}>
                   Kaj je še vključeno in kako poteka peka
-                </summary>
+                </span>
                 <ul className="flex flex-col gap-1.5 mt-2 list-disc pl-4">
                   {CLASSIC_OFFER_DETAILS.map((t) => (
                     <li key={t}>{t}</li>
                   ))}
                 </ul>
-              </details>
+              </div>
             </div>
           </>
         )}
