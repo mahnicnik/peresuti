@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { PERESUTKO_TREE, matchFreeText, PERESUTKO_FALLBACK_TEXT } from '@/lib/peresutko/rules'
 
-type HistoryItem = { role: 'bot' | 'user'; text: string }
+// 'offer' = gumb "Pošlji vprašanje po e-pošti" (text = uporabnikovo vprašanje za predizpolnitev)
+type HistoryItem = { role: 'bot' | 'user' | 'offer'; text: string }
 
 export default function Peresutko() {
   const [open, setOpen] = useState(false)
@@ -17,6 +18,13 @@ export default function Peresutko() {
 
   const node = PERESUTKO_TREE[nodeId]
 
+  // vedno pokaži zadnje sporočilo (odgovor + gumb za e-pošto)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = scrollRef.current
+    if (el) el.scrollTop = el.scrollHeight
+  }, [history, open, contactDraft])
+
   function choose(label: string, next: string) {
     const nextNode = PERESUTKO_TREE[next]
     if (!nextNode) return
@@ -24,6 +32,7 @@ export default function Peresutko() {
       ...h,
       { role: 'user', text: label },
       ...nextNode.bot.map((t) => ({ role: 'bot' as const, text: t })),
+      ...(next === 'contact' ? [{ role: 'offer' as const, text: '' }] : []),
     ])
     setNodeId(next)
   }
@@ -40,7 +49,8 @@ export default function Peresutko() {
         ...h,
         { role: 'user', text },
         { role: 'bot', text: PERESUTKO_FALLBACK_TEXT },
-        { role: 'bot', text: 'Lahko pa nam vprašanje pošljete po e-pošti — odgovorimo vam v najkrajšem možnem času. 👇' },
+        { role: 'bot', text: 'Lahko pa nam vprašanje pošljete po e-pošti — odgovorimo vam v najkrajšem možnem času.' },
+        { role: 'offer', text },
       ])
       setContactDraft(text)
       return
@@ -52,6 +62,8 @@ export default function Peresutko() {
       ...h,
       { role: 'user', text },
       ...botLines.map((t) => ({ role: 'bot' as const, text: t })),
+      // samodejni odgovor morda ne odgovori točno na vprašanje -> vedno ponudimo e-pošto
+      { role: 'offer', text },
     ])
     if (nextNode) setNodeId(match.nodeId)
   }
@@ -66,7 +78,7 @@ export default function Peresutko() {
     <div className="fixed bottom-5 right-5 z-50 flex flex-col items-end gap-3">
       {open && (
         <div
-          className="card w-[min(360px,calc(100vw-2.5rem))] max-h-[70vh] flex flex-col overflow-hidden"
+          className="card w-[min(360px,calc(100vw-2.5rem))] h-[min(640px,calc(100vh-7rem))] flex flex-col overflow-hidden"
           style={{ boxShadow: 'var(--shadow-lifted)' }}
         >
           <div
@@ -90,8 +102,19 @@ export default function Peresutko() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-2.5" style={{ background: 'var(--color-bg)' }}>
-            {history.map((item, i) => (
+          <div ref={scrollRef} className="flex-1 min-h-[120px] overflow-y-auto px-4 py-3 flex flex-col gap-2.5" style={{ background: 'var(--color-bg)' }}>
+            {history.map((item, i) =>
+              item.role === 'offer' ? (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setContactDraft(item.text)}
+                  className="self-start text-xs rounded-full px-3 py-1.5 font-semibold"
+                  style={{ border: '1.5px solid var(--color-primary)', color: 'var(--color-primary)', background: 'var(--color-surface)' }}
+                >
+                  {item.text ? 'Ni to, kar sem iskal — ✉️ pošlji vprašanje po e-pošti' : '✉️ Pošlji vprašanje po e-pošti'}
+                </button>
+              ) : (
               <div
                 key={i}
                 className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-sm leading-snug ${
@@ -105,19 +128,20 @@ export default function Peresutko() {
               >
                 {item.text}
               </div>
-            ))}
+              )
+            )}
           </div>
 
           {node?.options && contactDraft === null && (
             <div
-              className="px-3 pt-3 flex flex-col gap-2 border-t"
+              className="px-3 pt-2.5 pb-1 flex flex-col gap-1.5 border-t max-h-[28vh] overflow-y-auto shrink-0"
               style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}
             >
               {node.options.map((opt) => (
                 <button
                   key={opt.label}
                   onClick={() => choose(opt.label, opt.next)}
-                  className="btn btn-secondary text-left !justify-start !rounded-lg text-sm py-2"
+                  className="btn btn-secondary text-left !justify-start !rounded-lg !text-sm !py-1.5 !px-3"
                 >
                   {opt.label}
                 </button>

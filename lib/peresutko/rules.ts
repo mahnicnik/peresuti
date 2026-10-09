@@ -1,3 +1,4 @@
+import { computeQuantities } from '@/lib/menu'
 // Perešutko — pravilih temelječ pomočnik (odločitveno drevo, brez LLM-ja).
 // Vsako vozlišče je sporočilo bota + seznam gumbov, ki vodijo v naslednje vozlišče.
 // Ko boste imeli pripravljeno resnično bazo znanja (cenik, FAQ, sezonska ponudba), je
@@ -136,7 +137,7 @@ export const PERESUTKO_TREE: Record<string, PeresutkoNode> = {
   contact: {
     id: 'contact',
     bot: [
-      'Seveda! Pokličite nas na 040 – 832 – 040 ali nam pišite prek kontaktnega obrazca na peresuti.si.',
+      'Seveda! Pokličite nas na 040 – 832 – 040 ali nam vprašanje pošljite po e-pošti — odgovorimo vam v najkrajšem možnem času.',
     ],
     final: true,
     options: [ROOT_OPT],
@@ -150,7 +151,7 @@ export const PERESUTKO_TREE: Record<string, PeresutkoNode> = {
 // odgovor s ponudbo, naj izbere med gumbi ali pokliče.
 
 export const PERESUTKO_FALLBACK_TEXT =
-  'Tega še ne znam odgovoriti samodejno. Izberite eno od spodnjih možnosti, ali pa nas pokličite na 040 – 832 – 040.'
+  'Tega še ne znam odgovoriti samodejno. Izberite eno od spodnjih možnosti ali nas pokličite na 040 – 832 – 040.'
 
 type KeywordRule = { pattern: RegExp; nodeId: string }
 
@@ -190,10 +191,8 @@ export function matchFreeText(raw: string): FreeTextResult | null {
   return null
 }
 
-function guestAnswer(mid: number): string {
-  const meat = Math.round(mid * 300)
-  const salad = Math.round(mid * 100)
-  const potato = Math.round(mid * 100)
-  const veg = Math.round(mid * 150)
-  return `Klasična ponudba po osebi: 300 g mesa za žar, 100 g solat, 100 g krompirčka in 150 g pečene zelenjave — plus kruh in leseni pribor. Za približno ${mid} gostov to pomeni okoli ${(meat / 1000).toFixed(1)} kg mesa, ${(salad / 1000).toFixed(1)} kg solat, ${(potato / 1000).toFixed(1)} kg krompirčka in ${(veg / 1000).toFixed(1)} kg pečene zelenjave. Točno število gostov in morebitne vegetarijanske/veganske obroke vnesete v vprašalniku ob rezervaciji — ponudbo pripravimo po meri.`
+function guestAnswer(n: number): string {
+  const q = computeQuantities(n)
+  const pick = (label: string) => q.find((x) => x.label === label)?.text ?? ''
+  return `Za ${n} oseb pri klasični žar ponudbi priporočamo približno: ${pick('Meso na žaru')} mesa na žaru, ${pick('Pohan piščanec')} pohanega piščanca, ${pick('Solate')} solat, ${pick('Krompirček')} krompirčka, ${pick('Sezonska zelenjava (sveža)')} sezonske zelenjave in ${pick('Male lepinje (50 g)')} lepinj. Količine so za mešano družbo — celoten izračun vidite v vprašalniku ob rezervaciji, kjer vnesete točno število oseb.`
 }
