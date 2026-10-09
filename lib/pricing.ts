@@ -10,6 +10,13 @@ export const ZAR_DEPOSIT = 100
 /** Kilometrina: 1 € na km od Gorenje vasi, lokacije do te razdalje so brez doplačila. */
 export const KM_PRICE = 1
 export const KM_FREE_RADIUS = 30
+/** Doplačilo za zimski meni (na osebo). */
+export const WINTER_MENU_SURCHARGE = 2
+/** Od toliko obstoječih rezervacij žar mojstra na dan naprej je termin "pogojno prost". */
+export const ZAR_CONDITIONAL_THRESHOLD = 2
+/** DDV: samo najem prostora 22 %, s hrano (žar mojster) pa celotna storitev 9,5 %. */
+export const VAT_RATE_SPACE_ONLY = 0.22
+export const VAT_RATE_WITH_FOOD = 0.095
 
 export type PiknikPricing = { day_type: string; label: string; price: number }
 export type ZarTier = {
@@ -48,6 +55,8 @@ export type BookingSelection = {
   veganMeals: number
   sleepNights: number // 0 = brez prenočišča
   extras: string[] // ključi dodatnih storitev iz upsell_offers (odvoz_smeti, ciscenje)
+  menuType?: 'poletni' | 'zimski' // 'poletni' = klasična žar ponudba
+  zarConditional?: boolean // na dan sta že vsaj 2 piknika -> brez are, potrdi lastnik
 }
 
 /** Zimski meni je na voljo od 1. 10. do 30. 4. */
@@ -92,6 +101,14 @@ export type PriceBreakdown = {
   total: number
   payNow: number // piknik prostor v celoti + ara za žar mojstra (plačilo prek Stripe)
   payLater: number // preostanek za žar mojstra (plača se kasneje)
+  vatRate: number // 0.22 (samo prostor) ali 0.095 (s hrano)
+  vatAmount: number // DDV, vključen v skupni znesek
+  zarConditional: boolean
+}
+
+/** Stopnja DDV: s hrano (žar mojster) 9,5 % za vse postavke, samo prostor (+ sobe, čiščenje …) 22 %. */
+export function vatRateFor(includesZar: boolean): number {
+  return includesZar ? VAT_RATE_WITH_FOOD : VAT_RATE_SPACE_ONLY
 }
 
 export function computePriceBreakdown(
@@ -140,6 +157,12 @@ export function computePriceBreakdown(
     if (km && km.amount > 0) {
       zarLines.push({ label: `Kilometrina (${km.place}, ${km.km} km × ${KM_PRICE} €)`, amount: km.amount })
     }
+    if (sel.menuType === 'zimski' && isWinterDate(sel.bookingDate)) {
+      zarLines.push({
+        label: `Zimski meni (${guests} × ${WINTER_MENU_SURCHARGE} €)`,
+        amount: guests * WINTER_MENU_SURCHARGE,
+      })
+    }
     const vegAddon = ref.mealAddons.find((m) => m.key === 'vegetarian_meal')
     const veganAddon = ref.mealAddons.find((m) => m.key === 'vegan_meal')
     if (vegAddon && vegAddon.unit_price > 0 && sel.vegetarianMeals > 0) {
@@ -166,12 +189,19 @@ export function computePriceBreakdown(
   const round = (n: number) => Math.round(Math.max(0, n) * 100) / 100
   const piknikTotal = round(sum(piknikLines))
   const zarTotal = round(sum(zarLines))
-  const zarNow = sel.includesZar ? Math.min(ZAR_DEPOSIT, zarTotal || ZAR_DEPOSIT) : 0
+  // Pogojno prost termin žar mojstra: are ne zaračunamo, lastnik rezervacijo potrdi ročno.
+  const zarConditional = sel.includesZar && !!sel.zarConditional
+  const zarNow = sel.includesZar && !zarConditional ? Math.min(ZAR_DEPOSIT, zarTotal || ZAR_DEPOSIT) : 0
+  const total = round(piknikTotal + zarTotal)
+  const vatRate = vatRateFor(sel.includesZar)
 
   return {
     lines: [...piknikLines, ...zarLines],
-    total: round(piknikTotal + zarTotal),
+    total,
     payNow: round(piknikTotal + zarNow),
     payLater: round(zarTotal - zarNow),
+    vatRate,
+    vatAmount: Math.round((total - total / (1 + vatRate)) * 100) / 100,
+    zarConditional,
   }
 }

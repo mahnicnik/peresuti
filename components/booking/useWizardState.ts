@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { computePriceBreakdown, isWinterDate, type BookingSelection } from '@/lib/pricing'
+import { isHeatingSeason } from '@/lib/menu'
 import { ALL_STEPS, type Step, type PricingApiResponse } from './constants'
 
 export function useWizardState(tip: 'piknik' | 'zar' | 'oboje') {
@@ -14,6 +15,7 @@ export function useWizardState(tip: 'piknik' | 'zar' | 'oboje') {
 
   const [pricing, setPricing] = useState<PricingApiResponse | null>(null)
   const [bookedPiknikDates, setBookedPiknikDates] = useState<string[]>([])
+  const [conditionalZarDates, setConditionalZarDates] = useState<string[]>([])
   const [loadError, setLoadError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -25,6 +27,7 @@ export function useWizardState(tip: 'piknik' | 'zar' | 'oboje') {
         if (pricingRes.error) throw new Error(pricingRes.error)
         setPricing(pricingRes)
         setBookedPiknikDates(availRes.bookedPiknikDates ?? [])
+        setConditionalZarDates(availRes.conditionalZarDates ?? [])
       })
       .catch(() => setLoadError('Napaka pri nalaganju podatkov. Poskusite osvežiti stran.'))
   }, [])
@@ -41,6 +44,7 @@ export function useWizardState(tip: 'piknik' | 'zar' | 'oboje') {
   const [location, setLocation] = useState<string | null>(null)
   const [menuType, setMenuType] = useState<'poletni' | 'zimski'>('poletni')
   const [extras, setExtras] = useState<string[]>([])
+  const [heatedSpace, setHeatedSpace] = useState(false)
 
   const [acceptedRules, setAcceptedRules] = useState<Record<string, boolean>>({})
   const [acceptedTerms, setAcceptedTerms] = useState(false)
@@ -66,9 +70,14 @@ export function useWizardState(tip: 'piknik' | 'zar' | 'oboje') {
   const isPiknikOnly = baseIncludesPiknik && !baseIncludesZar
   const isZarOnly = baseIncludesZar && !baseIncludesPiknik
   const piknikFreeOnDate = selectedDate ? !bookedPiknikDates.includes(selectedDate) : false
+  // Žar mojster ima na izbrani dan že ≥ 2 pikniku -> "pogojno prosto" (brez are, potrdi lastnik)
+  const zarConditional = includesZar && !!selectedDate && conditionalZarDates.includes(selectedDate)
+  const heatingAvailable = includesPiknik && !!selectedDate && isHeatingSeason(selectedDate)
 
   // Korak "Pogoji" je viden vedno (splošni pogoji veljajo tudi za "samo žar mojster").
   const visibleSteps = ALL_STEPS
+
+  const winterMenuAvailable = selectedDate ? isWinterDate(selectedDate) : false
 
   const selection: BookingSelection | null = useMemo(() => {
     if (!selectedDate) return null
@@ -82,10 +91,10 @@ export function useWizardState(tip: 'piknik' | 'zar' | 'oboje') {
       veganMeals,
       sleepNights,
       extras: includesPiknik ? extras : [],
+      menuType: winterMenuAvailable ? menuType : 'poletni',
+      zarConditional,
     }
-  }, [selectedDate, includesPiknik, includesZar, guestCount, location, vegetarianMeals, veganMeals, sleepNights, extras])
-
-  const winterMenuAvailable = selectedDate ? isWinterDate(selectedDate) : false
+  }, [selectedDate, includesPiknik, includesZar, guestCount, location, vegetarianMeals, veganMeals, sleepNights, extras, winterMenuAvailable, menuType, zarConditional])
 
   const breakdown = useMemo(() => {
     if (!pricing || !selection) return null
@@ -122,7 +131,13 @@ export function useWizardState(tip: 'piknik' | 'zar' | 'oboje') {
           vegetarianMeals,
           veganMeals,
           location: includesZar && !includesPiknik ? location : null,
-          upsell: { sleepNights, addZar, addPiknik, extras: includesPiknik ? extras : [] },
+          upsell: {
+            sleepNights,
+            addZar,
+            addPiknik,
+            extras: includesPiknik ? extras : [],
+            heatedSpace: heatingAvailable && heatedSpace,
+          },
           acceptedRuleIds: Object.keys(acceptedRules).filter((k) => acceptedRules[k]),
           entityType,
           customerName,
@@ -140,6 +155,10 @@ export function useWizardState(tip: 'piknik' | 'zar' | 'oboje') {
         return
       }
 
+      if (data.conditional && data.entityType === 'fizicna') {
+        router.push(`/rezervacija/potrditev?status=inquiry`)
+        return
+      }
       if (data.entityType === 'pravna') {
         router.push(`/rezervacija/potrditev?status=sent`)
         return
@@ -157,5 +176,5 @@ export function useWizardState(tip: 'piknik' | 'zar' | 'oboje') {
 
 
 
-  return { tip, step, setStep, pricing, setPricing, bookedPiknikDates, setBookedPiknikDates, loadError, setLoadError, selectedDate, setSelectedDate, guestCount, setGuestCount, foodReadyTime, setFoodReadyTime, menuType, setMenuType, extras, setExtras, winterMenuAvailable, meatNotes, setMeatNotes, vegetarianMeals, setVegetarianMeals, veganMeals, setVeganMeals, location, setLocation, acceptedRules, setAcceptedRules, acceptedTerms, setAcceptedTerms, addZar, setAddZar, addPiknik, setAddPiknik, sleepNights, setSleepNights, entityType, setEntityType, customerName, setCustomerName, customerEmail, setCustomerEmail, customerPhone, setCustomerPhone, companyName, setCompanyName, companyVat, setCompanyVat, companyAddress, setCompanyAddress, submitting, setSubmitting, submitError, setSubmitError, router, baseIncludesPiknik, baseIncludesZar, includesPiknik, includesZar, isPiknikOnly, isZarOnly, piknikFreeOnDate, visibleSteps, selection, breakdown, allRulesAccepted, goNext, goBack, submitBooking }
+  return { conditionalZarDates, zarConditional, heatingAvailable, heatedSpace, setHeatedSpace, tip, step, setStep, pricing, setPricing, bookedPiknikDates, setBookedPiknikDates, loadError, setLoadError, selectedDate, setSelectedDate, guestCount, setGuestCount, foodReadyTime, setFoodReadyTime, menuType, setMenuType, extras, setExtras, winterMenuAvailable, meatNotes, setMeatNotes, vegetarianMeals, setVegetarianMeals, veganMeals, setVeganMeals, location, setLocation, acceptedRules, setAcceptedRules, acceptedTerms, setAcceptedTerms, addZar, setAddZar, addPiknik, setAddPiknik, sleepNights, setSleepNights, entityType, setEntityType, customerName, setCustomerName, customerEmail, setCustomerEmail, customerPhone, setCustomerPhone, companyName, setCompanyName, companyVat, setCompanyVat, companyAddress, setCompanyAddress, submitting, setSubmitting, submitError, setSubmitError, router, baseIncludesPiknik, baseIncludesZar, includesPiknik, includesZar, isPiknikOnly, isZarOnly, piknikFreeOnDate, visibleSteps, selection, breakdown, allRulesAccepted, goNext, goBack, submitBooking }
 }

@@ -4,7 +4,7 @@ import { useWizard } from './WizardContext'
 import { Field } from './ui'
 
 export default function StepCustomer() {
-  const { breakdown, entityType, setEntityType, customerName, setCustomerName, customerEmail, setCustomerEmail, customerPhone, setCustomerPhone, companyName, setCompanyName, companyVat, setCompanyVat, companyAddress, setCompanyAddress, submitting, submitError, goBack, submitBooking } = useWizard()
+  const { breakdown, zarConditional, includesPiknik, entityType, setEntityType, customerName, setCustomerName, customerEmail, setCustomerEmail, customerPhone, setCustomerPhone, companyName, setCompanyName, companyVat, setCompanyVat, companyAddress, setCompanyAddress, submitting, submitError, goBack, submitBooking } = useWizard()
 
   return (
             <div className="flex flex-col gap-5">
@@ -38,7 +38,11 @@ export default function StepCustomer() {
                 </div>
 
                 <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-                  {entityType === 'fizicna'
+                  {entityType === 'fizicna' && zarConditional && !includesPiknik
+                    ? 'Termin za žar mojstra je pogojno prost, zato spletnega plačila are ni. Po oddaji preverimo razpored in vam potrditev pošljemo po e-pošti.'
+                    : entityType === 'fizicna' && zarConditional
+                    ? `Po oddaji vas preusmerimo na spletno plačilo piknik prostora (${breakdown?.payNow.toFixed(2) ?? ''} €). Žar mojster je na ta dan pogojno prost — are ne zaračunamo, potrditev pošljemo po e-pošti.`
+                    : entityType === 'fizicna'
                     ? breakdown && breakdown.payLater > 0
                       ? `Po oddaji vas preusmerimo na varno spletno plačilo ${breakdown.payNow.toFixed(2)} € (piknik prostor v celoti in 100 € are za žar mojstra). Ostanek ${breakdown.payLater.toFixed(2)} € za žar mojstra plačate kasneje.`
                       : 'Po oddaji vas bomo preusmerili na varno spletno plačilo.'
@@ -92,7 +96,13 @@ export default function StepCustomer() {
                   disabled={submitting || !customerName || !customerEmail || (entityType === 'pravna' && (!companyName || !companyVat))}
                   onClick={submitBooking}
                 >
-                  {submitting ? 'Oddajam …' : entityType === 'pravna' ? 'Pošlji naročilnico' : 'Nadaljuj na plačilo →'}
+                  {submitting
+                    ? 'Oddajam …'
+                    : entityType === 'pravna'
+                      ? 'Pošlji naročilnico'
+                      : zarConditional && !includesPiknik
+                        ? 'Pošlji povpraševanje'
+                        : 'Nadaljuj na plačilo →'}
                 </button>
               </div>
             </div>

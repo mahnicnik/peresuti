@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
 import { bookingRequestSchema } from '@/lib/booking-schema'
-import { computePriceBreakdown, kmChargeForPostalCode, type PricingReferenceData } from '@/lib/pricing'
+import { computePriceBreakdown, kmChargeForPostalCode, ZAR_CONDITIONAL_THRESHOLD, type PricingReferenceData } from '@/lib/pricing'
 import { getStripe } from '@/lib/stripe'
 import { getResend } from '@/lib/resend'
 import { renderNarocilnicaHtml } from '@/lib/booking-email'
 import { sendBookingInfoEmail } from '@/lib/info-email'
+import { sendOwnerBookingEmail, sendCustomerZarStatusEmail } from '@/lib/owner-email'
 
 export async function POST(req: Request) {
   const supabase = createServerClient()
@@ -42,8 +43,7 @@ export async function POST(req: Request) {
     mealAddons: meals.data ?? [],
   }
 
-  const breakdown = computePriceBreakdown(
-    {
+  const selection = {
       bookingDate: body.bookingDate,
       includesPiknik: finalIncludesPiknik,
       includesZar: finalIncludesZar,
@@ -53,9 +53,20 @@ export async function POST(req: Request) {
       veganMeals: body.veganMeals,
       sleepNights: Math.min(body.upsell.sleepNights, 1),
       extras: finalIncludesPiknik ? body.upsell.extras : [],
-    },
-    ref
-  )
+      menuType: body.menuType,
+  }
+  // Skupni znesek ni odvisen od "pogojnosti" termina — ta vpliva samo na aro (plačilo zdaj),
+  // zato jo po ustvarjanju rezervacije (ko baza avtoritativno odloči) izračunamo ponovno.
+  let expectConditional = false
+  if (finalIncludesZar) {
+    const { data: zarDay } = await supabase
+      .from('zar_availability')
+      .select('zar_count')
+      .eq('booking_date', body.bookingDate)
+      .maybeSingle()
+    expectConditional = (zarDay?.zar_count ?? 0) >= ZAR_CONDITIONAL_THRESHOLD
+  }
+  let breakdown = computePriceBreakdown({ ...selection, zarConditional: expectConditional }, ref)
   const kmCharge = finalIncludesZar ? kmChargeForPostalCode(body.location) : null
   if (finalIncludesZar && body.location && !kmCharge) {
     return NextResponse.json({ error: 'Neznana poštna številka' }, { status: 400 })
@@ -83,6 +94,7 @@ export async function POST(req: Request) {
       vegetarianMeals: body.vegetarianMeals,
       veganMeals: body.veganMeals,
       extras: body.upsell.extras,
+      heatedSpace: finalIncludesPiknik ? body.upsell.heatedSpace : false,
       payNow: breakdown.payNow,
       payLater: breakdown.payLater,
       acceptedRuleIds: body.acceptedRuleIds,
@@ -105,6 +117,21 @@ export async function POST(req: Request) {
       ? createError.message
       : 'Rezervacije ni bilo mogoče ustvariti. Poskusite znova.'
     return NextResponse.json({ error: msg }, { status: 409 })
+  }
+
+  // --- Žar mojster na pogojno prost dan (že ≥ 2 pikniki): brez are, potrdi lastnik ---
+  const zarConditional = booking.zar_confirmation === 'pending'
+  if (zarConditional !== expectConditional) {
+    // redka tekma med dvema oddajama — baza je odločila drugače
+    breakdown = computePriceBreakdown({ ...selection, zarConditional }, ref)
+  }
+
+  if (zarConditional && body.entityType === 'fizicna' && !finalIncludesPiknik) {
+    await Promise.all([
+      sendOwnerBookingEmail(booking, 'inquiry'),
+      sendCustomerZarStatusEmail(booking, 'inquiry'),
+    ])
+    return NextResponse.json({ success: true, entityType: 'fizicna', bookingId: booking.id, conditional: true })
   }
 
   // --- Pravna oseba: naročilnica prek Resend (lastniku + kopija naročniku) ---
@@ -135,9 +162,10 @@ export async function POST(req: Request) {
         includesPiknik: finalIncludesPiknik,
         includesZar: finalIncludesZar,
       }),
+      zarConditional ? sendOwnerBookingEmail(booking, 'inquiry') : Promise.resolve(),
     ])
 
-    return NextResponse.json({ success: true, entityType: 'pravna', bookingId: booking.id })
+    return NextResponse.json({ success: true, entityType: 'pravna', bookingId: booking.id, conditional: zarConditional })
   }
 
   // --- Fizična oseba: plačilo prek Stripe ---

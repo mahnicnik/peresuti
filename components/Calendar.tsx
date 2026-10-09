@@ -19,11 +19,13 @@ function startOfMonth(year: number, month: number): Date {
 export default function Calendar({
   bookedPiknikDates,
   showAvailability, // true, če izbira vpliva na zasedenost piknik prostora
+  conditionalDates = [], // dnevi, ko je žar mojster "pogojno prost" (že ≥ 2 pikniku)
   selectedDate,
   onSelect,
 }: {
   bookedPiknikDates: string[]
   showAvailability: boolean
+  conditionalDates?: string[]
   selectedDate: string | null
   onSelect: (dateStr: string) => void
 }) {
@@ -40,6 +42,7 @@ export default function Calendar({
   const [cursor, setCursor] = useState(() => startOfMonth(today.getUTCFullYear(), today.getUTCMonth()))
 
   const bookedSet = useMemo(() => new Set(bookedPiknikDates), [bookedPiknikDates])
+  const conditionalSet = useMemo(() => new Set(conditionalDates), [conditionalDates])
 
   const days = useMemo(() => {
     const year = cursor.getUTCFullYear()
@@ -106,6 +109,7 @@ export default function Calendar({
           const isBooked = showAvailability && bookedSet.has(dateStr)
           const disabled = isPast || isTooFar || isBooked
           const isSelected = selectedDate === dateStr
+          const isConditional = !disabled && conditionalSet.has(dateStr)
 
           return (
             <button
@@ -119,14 +123,24 @@ export default function Calendar({
                   ? 'var(--color-primary)'
                   : isBooked
                     ? 'var(--color-bg-alt)'
-                    : 'var(--color-surface)',
+                    : isConditional
+                      ? '#fbecd0'
+                      : 'var(--color-surface)',
                 color: isSelected ? '#fff8ef' : disabled ? 'var(--color-text-muted)' : 'var(--color-text)',
-                border: `1px solid ${isSelected ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                border: `1px solid ${isSelected ? 'var(--color-primary)' : isConditional ? 'var(--color-accent)' : 'var(--color-border)'}`,
                 cursor: disabled ? 'not-allowed' : 'pointer',
                 opacity: isPast || isTooFar ? 0.35 : 1,
               }}
             >
               <span style={isBooked ? { textDecoration: 'line-through' } : undefined}>{date.getUTCDate()}</span>
+              {isConditional && (
+                <span
+                  className="text-[9px] sm:text-[10px] leading-none mt-0.5 font-semibold"
+                  style={{ color: isSelected ? '#fff8ef' : 'var(--color-accent-dark)' }}
+                >
+                  pogojno
+                </span>
+              )}
               {isBooked && (
                 <svg
                   aria-label="zasedeno"
@@ -143,8 +157,18 @@ export default function Calendar({
         })}
       </div>
 
-      {showAvailability && (
-        <div className="flex items-center gap-4 mt-5 text-xs" style={{ color: 'var(--color-text-muted)' }}>
+      {(showAvailability || conditionalDates.length > 0) && (
+        <div className="flex items-center flex-wrap gap-x-4 gap-y-2 mt-5 text-xs" style={{ color: 'var(--color-text-muted)' }}>
+          {conditionalDates.length > 0 && (
+            <span className="flex items-center gap-1.5">
+              <span
+                className="inline-block w-3 h-3 rounded"
+                style={{ background: '#fbecd0', border: '1px solid var(--color-accent)' }}
+              />
+              Pogojno prosto (potrdimo naknadno)
+            </span>
+          )}
+          {showAvailability && (
           <span className="flex items-center gap-1.5">
             <span
               className="inline-block w-3 h-3 rounded"
@@ -152,6 +176,7 @@ export default function Calendar({
             >✕</span>
             Piknik prostor zaseden
           </span>
+          )}
           <span className="flex items-center gap-1.5">
             <span
               className="inline-block w-3 h-3 rounded"

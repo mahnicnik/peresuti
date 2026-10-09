@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getStripe } from '@/lib/stripe'
 import { createServerClient } from '@/lib/supabase/server'
 import { sendBookingInfoEmail } from '@/lib/info-email'
+import { sendOwnerBookingEmail } from '@/lib/owner-email'
 
 export async function POST(req: Request) {
   const stripe = getStripe()
@@ -35,7 +36,7 @@ export async function POST(req: Request) {
     }
     const supabase = createServerClient()
 
-    const { error } = await supabase.rpc('mark_booking_paid', {
+    const { data: paidBooking, error } = await supabase.rpc('mark_booking_paid', {
       p_session_id: session.id,
       p_secret: internalSecret,
     })
@@ -45,6 +46,8 @@ export async function POST(req: Request) {
       // za dogodke, ki niso naši (druga aplikacija na istem Stripe računu ipd.)
       console.error('mark_booking_paid failed:', error.message)
     } else {
+      // lastniku vsi podatki rezervacije (ime, telefon, e-pošta, plačilo, količine hrane …)
+      if (paidBooking) await sendOwnerBookingEmail(paidBooking, 'paid')
       const to = session.customer_details?.email ?? session.customer_email
       const m = session.metadata ?? {}
       if (to && m.booking_date) {

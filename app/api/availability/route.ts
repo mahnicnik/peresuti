@@ -1,18 +1,31 @@
 import { NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
+import { ZAR_CONDITIONAL_THRESHOLD } from '@/lib/pricing'
 
-// Vrne SAMO datume, ko je piknik prostor že zaseden (brez osebnih podatkov — glej
-// `piknik_availability` view in njegove RLS/grant nastavitve). Žar mojster nima omejitve,
-// zato zanj zasedenost ni relevantna in se v koledarju nikoli ne prikaže kot 'zasedeno'.
+// Vrne SAMO datume (brez osebnih podatkov — glej view-a `piknik_availability` in
+// `zar_availability`):
+// - bookedPiknikDates: piknik prostor je zaseden
+// - conditionalZarDates: žar mojster ima na ta dan že vsaj 2 pikniku -> "pogojno prosto"
+//   (rezervacijo je še mogoče oddati, potrdi pa jo lastnik ročno, brez are)
 export async function GET() {
   const supabase = createServerClient()
-  const { data, error } = await supabase.from('piknik_availability').select('booking_date')
+  const [piknik, zar] = await Promise.all([
+    supabase.from('piknik_availability').select('booking_date'),
+    supabase.from('zar_availability').select('booking_date,zar_count'),
+  ])
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  const err = piknik.error ?? zar.error
+  if (err) {
+    return NextResponse.json({ error: err.message }, { status: 500 })
   }
 
-  return NextResponse.json({
-    bookedPiknikDates: (data ?? []).map((r) => r.booking_date),
-  })
+  return NextResponse.json(
+    {
+      bookedPiknikDates: (piknik.data ?? []).map((r) => r.booking_date),
+      conditionalZarDates: (zar.data ?? [])
+        .filter((r) => (r.zar_count ?? 0) >= ZAR_CONDITIONAL_THRESHOLD)
+        .map((r) => r.booking_date),
+    },
+    { headers: { 'Cache-Control': 'no-store' } }
+  )
 }

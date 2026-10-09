@@ -41,6 +41,7 @@ export const CLASSIC_OFFER_DETAILS: string[] = [
 export const PIKNIK_INFO: { title: string; text: string }[] = [
   { title: 'Najem', text: 'Najem prostora je od 10.00 zjutraj do 9.00 naslednjega dne. V najem ni vključen odvoz smeti.' },
   { title: 'Oprema', text: 'Tekoča voda (ni pitna), elektrika, ločen prostor z WC-jem, prostor za kuhinjo s plinskim žarom (plin vključen) in žarom na oglje (oglje ni vključeno), igrišče za mali nogomet, odbojka na pesku, 2 hladilnika, skrinja in sedišča za 70 oseb.' },
+  { title: 'Jesen, zima in pomlad', text: 'Jeseni, pozimi in spomladi je piknik prostor po želji lahko tudi zaprt in ogrevan — željo označite pri rezervaciji.' },
   { title: 'Hlajenje', text: 'Hladilnika in skrinja so prižgani in ohlajeni že pred vašim prihodom. Ob visokih temperaturah se poln hladilnik pijače hladi več ur, zato predlagamo uporabo skrinje.' },
   { title: 'Prostor za spanje', text: '2 sobi in WC s tušem (1. soba: 2 postelji 200×160 cm; 2. soba: postelja 200×160 cm in raztegljiv kavč). Oddaja se samo v kompletu za 90 € na noč, vključeni so 3 kompleti posteljnine. Sobe lahko rezervirate tudi šele na dan zabave — takrat vam sporočimo kodo za ključe, plačilo pa oddate v gotovini v nabiralnik desno od vrat v kuhinjo.' },
   { title: 'Lokacija', text: 'V bližini vasi Skaručna. V Google Maps (ali drug program) vpišite »Piknik prostor Skaručna« in navigacija vas pripelje natančno do lokacije.' },

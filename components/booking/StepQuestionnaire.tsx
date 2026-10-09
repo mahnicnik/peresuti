@@ -3,7 +3,8 @@
 import { useWizard } from './WizardContext'
 import { Field, StepNav } from './ui'
 import { CLASSIC_OFFER, CLASSIC_OFFER_DETAILS } from './constants'
-import { kmChargeForPostalCode, KM_FREE_RADIUS, PIKNIK_SURCHARGE_GUESTS } from '@/lib/pricing'
+import { kmChargeForPostalCode, KM_FREE_RADIUS, PIKNIK_SURCHARGE_GUESTS, WINTER_MENU_SURCHARGE } from '@/lib/pricing'
+import { computeQuantities, QUANTITIES_NOTE, WINTER_MENU_ITEMS } from '@/lib/menu'
 
 // Ure na 30 minut natančno (10:00 – 23:30)
 const TIME_SLOTS = Array.from({ length: 28 }, (_, i) => {
@@ -12,7 +13,7 @@ const TIME_SLOTS = Array.from({ length: 28 }, (_, i) => {
 })
 
 export default function StepQuestionnaire() {
-  const { pricing, guestCount, setGuestCount, foodReadyTime, setFoodReadyTime, meatNotes, setMeatNotes, vegetarianMeals, setVegetarianMeals, veganMeals, setVeganMeals, location, setLocation, menuType, setMenuType, winterMenuAvailable, includesPiknik, includesZar, goNext, goBack } = useWizard()
+  const { pricing, guestCount, setGuestCount, foodReadyTime, setFoodReadyTime, meatNotes, setMeatNotes, vegetarianMeals, setVegetarianMeals, veganMeals, setVeganMeals, location, setLocation, menuType, setMenuType, winterMenuAvailable, includesPiknik, includesZar, heatingAvailable, heatedSpace, setHeatedSpace, goNext, goBack } = useWizard()
   if (!pricing) return null
 
   const guests = typeof guestCount === 'number' ? guestCount : 0
@@ -125,13 +126,15 @@ export default function StepQuestionnaire() {
             )}
 
             {winterMenuAvailable && (
-              <Field label="Meni">
+              <div className="flex flex-col gap-1.5 text-sm" role="group" aria-label="Meni">
+                <span className="font-medium" style={{ color: 'var(--color-brown-dark)' }}>Meni</span>
                 <div className="flex gap-2">
                   {(['poletni', 'zimski'] as const).map((m) => (
                     <button
                       key={m}
                       type="button"
                       onClick={() => setMenuType(m)}
+                      aria-pressed={menuType === m}
                       className="text-sm rounded-full px-4 py-1.5 transition-colors"
                       style={{
                         border: `1.5px solid ${menuType === m ? 'var(--color-primary)' : 'var(--color-border)'}`,
@@ -139,12 +142,14 @@ export default function StepQuestionnaire() {
                         color: menuType === m ? '#fff8ef' : 'var(--color-text)',
                       }}
                     >
-                      {m === 'poletni' ? 'Poletni meni' : 'Zimski meni'}
+                      {m === 'poletni' ? 'Klasična žar ponudba' : `Zimski meni (+${WINTER_MENU_SURCHARGE} €/osebo)`}
                     </button>
                   ))}
                 </div>
-                <span className="text-xs" style={muted}>Zimski meni je na voljo od 1. 10. do 30. 4.</span>
-              </Field>
+                <span className="text-xs" style={muted}>
+                  Od 1. 10. do 30. 4. lahko izberete klasično žar ponudbo ali zimski meni (doplačilo {WINTER_MENU_SURCHARGE} € na osebo).
+                </span>
+              </div>
             )}
 
             <div className="flex flex-col gap-2 pt-3 border-t text-sm" style={{ borderColor: 'var(--color-border)' }}>
@@ -152,9 +157,16 @@ export default function StepQuestionnaire() {
                 {winterMenuAvailable && menuType === 'zimski' ? 'Zimski meni' : 'Naša klasična ponudba'}
               </span>
               {winterMenuAvailable && menuType === 'zimski' ? (
-                <p style={muted}>Podrobno vsebino zimskega menija vam pošljemo ob potrditvi rezervacije.</p>
+                <ul className="list-disc pl-5 flex flex-col gap-0.5" style={muted}>
+                  {WINTER_MENU_ITEMS.map((i) => (
+                    <li key={i}>{i}</li>
+                  ))}
+                </ul>
               ) : (
-                <p style={muted}>{CLASSIC_OFFER}</p>
+                <>
+                  <p style={muted}>{CLASSIC_OFFER}</p>
+                  {guests > 0 && <QuantitiesTable guests={guests} />}
+                </>
               )}
               <div className="text-xs" style={muted}>
                 <span className="font-medium" style={{ color: 'var(--color-accent-dark)' }}>
@@ -170,6 +182,25 @@ export default function StepQuestionnaire() {
           </>
         )}
 
+        {heatingAvailable && (
+          <label className="flex items-start gap-3 cursor-pointer text-sm pt-3 border-t" style={{ borderColor: 'var(--color-border)' }}>
+            <input
+              type="checkbox"
+              className="mt-1 w-4 h-4"
+              checked={heatedSpace}
+              onChange={(e) => setHeatedSpace(e.target.checked)}
+            />
+            <span>
+              <span className="block font-medium" style={{ color: 'var(--color-brown-dark)' }}>
+                Želim zaprt in ogrevan piknik prostor
+              </span>
+              <span className="block text-xs mt-0.5" style={muted}>
+                Jeseni, pozimi in spomladi lahko prostor po želji zapremo in ogrevamo.
+              </span>
+            </span>
+          </label>
+        )}
+
         <Field label="Opombe">
           <textarea
             className="input"
@@ -182,6 +213,30 @@ export default function StepQuestionnaire() {
       </div>
 
       <StepNav onBack={goBack} onNext={goNext} nextDisabled={nextDisabled} />
+    </div>
+  )
+}
+
+function QuantitiesTable({ guests }: { guests: number }) {
+  const rows = computeQuantities(guests)
+  return (
+    <div className="rounded-lg p-3 mt-1" style={{ background: 'var(--color-bg-alt)' }}>
+      <span className="font-medium text-sm" style={{ color: 'var(--color-brown-dark)' }}>
+        Priporočene količine pri {guests} {guests === 1 ? 'osebi' : 'osebah'}
+      </span>
+      <table className="w-full text-sm mt-2">
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.label}>
+              <td className="py-0.5 pr-3 text-right font-semibold whitespace-nowrap tabular-nums" style={{ color: 'var(--color-text)', width: '1%' }}>
+                {r.text}
+              </td>
+              <td className="py-0.5" style={{ color: 'var(--color-text-muted)' }}>{r.label}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="text-xs mt-2" style={{ color: 'var(--color-text-muted)' }}>{QUANTITIES_NOTE}</p>
     </div>
   )
 }

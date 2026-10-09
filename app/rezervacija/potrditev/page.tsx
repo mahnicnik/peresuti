@@ -20,6 +20,10 @@ export default async function PotrditevPage({
       title: 'Naročilnica poslana',
       text: 'Vašo naročilnico smo prejeli in kopijo poslali tudi na vaš email. Oglasili se vam bomo v najkrajšem možnem času.',
     },
+    inquiry: {
+      title: 'Povpraševanje oddano',
+      text: 'Na izbrani dan imamo že več piknikov, zato vaš termin še ni potrjen. Preverimo razpored in vam potrditev pošljemo po e-pošti v najkrajšem možnem času. Are ne zaračunamo.',
+    },
     pending: {
       title: 'Rezervacija shranjena',
       text: 'Vaša rezervacija je zabeležena kot čakajoča. Kmalu vas bomo kontaktirali glede plačila in potrditve.',

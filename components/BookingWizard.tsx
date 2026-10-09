@@ -81,6 +81,15 @@ function WizardLayout() {
                   <span>Skupaj</span>
                   <span>{breakdown.total.toFixed(2)} €</span>
                 </div>
+                <div className="flex justify-between gap-2 text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                  <span>od tega DDV {(breakdown.vatRate * 100).toLocaleString('sl-SI')} %</span>
+                  <span className="whitespace-nowrap">{breakdown.vatAmount.toFixed(2)} €</span>
+                </div>
+                {breakdown.zarConditional && (
+                  <p className="text-xs mt-1 p-2 rounded" style={{ background: '#fbecd0', color: 'var(--color-brown-dark)' }}>
+                    Žar mojster: pogojno prost termin — brez are, potrditev po e-pošti.
+                  </p>
+                )}
                 {breakdown.payLater > 0 && (
                   <div className="flex flex-col gap-1 pt-2 text-xs" style={{ color: 'var(--color-text-muted)' }}>
                     <div className="flex justify-between gap-2">

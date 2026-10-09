@@ -57,6 +57,8 @@ export type Database = {
           status: string
           stripe_session_id: string | null
           upsell_selections: Json | null
+          admin_note: string | null
+          zar_confirmation: string | null
         }
         Insert: {
           booking_date: string
@@ -85,6 +87,8 @@ export type Database = {
           status?: string
           stripe_session_id?: string | null
           upsell_selections?: Json | null
+          admin_note?: string | null
+          zar_confirmation?: string | null
         }
         Update: {
           booking_date?: string
@@ -113,6 +117,8 @@ export type Database = {
           status?: string
           stripe_session_id?: string | null
           upsell_selections?: Json | null
+          admin_note?: string | null
+          zar_confirmation?: string | null
         }
         Relationships: []
       }
@@ -274,8 +280,30 @@ export type Database = {
         }
         Relationships: []
       }
+      zar_availability: {
+        Row: {
+          booking_date: string | null
+          zar_count: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      admin_list_bookings: {
+        Args: { p_from: string; p_secret: string; p_to: string }
+        Returns: BookingRow[]
+      }
+      admin_update_booking: {
+        Args: {
+          p_admin_note?: string
+          p_id: string
+          p_payment_status?: string
+          p_secret: string
+          p_status?: string
+          p_zar_confirmation?: string
+        }
+        Returns: BookingRow
+      }
       create_booking: {
         Args: {
           p_booking_date: string
@@ -325,6 +353,8 @@ export type Database = {
           status: string
           stripe_session_id: string | null
           upsell_selections: Json | null
+          admin_note: string | null
+          zar_confirmation: string | null
         }
         SetofOptions: {
           from: "*"
@@ -362,6 +392,8 @@ export type Database = {
           status: string
           stripe_session_id: string | null
           upsell_selections: Json | null
+          admin_note: string | null
+          zar_confirmation: string | null
         }
         SetofOptions: {
           from: "*"
@@ -389,3 +421,5 @@ export const Constants = {
     Enums: {},
   },
 } as const
+
+type BookingRow = Database['public']['Tables']['bookings']['Row']

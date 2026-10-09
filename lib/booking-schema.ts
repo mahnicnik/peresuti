@@ -28,6 +28,7 @@ export const bookingRequestSchema = z
       addZar: z.boolean().default(false), // cross-sell: piknik-only stranka doda žar
       addPiknik: z.boolean().default(false), // cross-sell: žar-only stranka doda piknik
       extras: z.array(z.enum(['odvoz_smeti', 'ciscenje'])).default([]),
+      heatedSpace: z.boolean().default(false), // jeseni/pozimi/spomladi: zaprt in ogrevan prostor (po želji)
     }),
 
     // Pravila piknik prostora so relevantna samo, če je piknik prostor del rezervacije

@@ -6,7 +6,7 @@ import Image from 'next/image'
 import { PIKNIK_INFO } from './constants'
 
 export default function StepCalendar() {
-  const { bookedPiknikDates, selectedDate, setSelectedDate, baseIncludesPiknik, goNext } = useWizard()
+  const { bookedPiknikDates, conditionalZarDates, selectedDate, setSelectedDate, baseIncludesPiknik, baseIncludesZar, zarConditional, goNext } = useWizard()
 
   return (
             <div className="flex flex-col gap-5">
@@ -15,9 +15,20 @@ export default function StepCalendar() {
               <Calendar
                 bookedPiknikDates={bookedPiknikDates}
                 showAvailability={baseIncludesPiknik}
+                conditionalDates={baseIncludesZar ? conditionalZarDates : []}
                 selectedDate={selectedDate}
                 onSelect={setSelectedDate}
               />
+              {zarConditional && (
+                <div
+                  className="p-4 text-sm"
+                  style={{ borderRadius: 'var(--radius)', background: '#fbecd0', border: '1px solid var(--color-accent)', color: 'var(--color-brown-dark)' }}
+                >
+                  <strong>Ta dan je za žar mojstra pogojno prost.</strong> Na ta datum imamo že več piknikov —
+                  rezervacijo lahko oddate, vendar še ni potrjena: preverimo razpored in vam potrditev
+                  pošljemo po e-pošti. Are za žar mojstra v tem primeru ne zaračunamo.
+                </div>
+              )}
               {baseIncludesPiknik && <PiknikInfo />}
               <div className="flex justify-end">
                 <button className="btn btn-primary" disabled={!selectedDate} onClick={goNext}>
