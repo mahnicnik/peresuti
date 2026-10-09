@@ -2,8 +2,10 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { isAdmin } from '@/lib/admin-auth'
 import { createServerClient } from '@/lib/supabase/server'
-import { sendCustomerZarStatusEmail } from '@/lib/owner-email'
-import { sendBookingInfoEmail } from '@/lib/info-email'
+import { sendCustomerCancelled, sendCustomerPaymentRequest, sendCustomerZarStatusEmail } from '@/lib/customer-email'
+import { amountDue } from '@/lib/payments-shared'
+import { getStripe } from '@/lib/stripe'
+import { emailConfigured } from '@/lib/email'
 
 const dateRe = /^\d{4}-\d{2}-\d{2}$/
 
@@ -30,8 +32,9 @@ export async function GET(req: Request) {
 
 const patchSchema = z.object({
   id: z.string().uuid(),
-  action: z.enum(['confirm_zar', 'reject_zar', 'mark_paid', 'mark_unpaid', 'cancel', 'restore', 'note']),
+  action: z.enum(['confirm_zar', 'reject_zar', 'mark_paid', 'mark_unpaid', 'cancel', 'restore', 'note', 'send_payment_link']),
   note: z.string().max(2000).optional(),
+  notify: z.boolean().optional(), // pri preklicu: obvesti stranko po e-pošti
 })
 
 export async function PATCH(req: Request) {
@@ -41,7 +44,22 @@ export async function PATCH(req: Request) {
 
   const parsed = patchSchema.safeParse(await req.json().catch(() => null))
   if (!parsed.success) return NextResponse.json({ error: 'Neveljavna zahteva' }, { status: 400 })
-  const { id, action, note } = parsed.data
+  const { id, action, note, notify } = parsed.data
+  const supabase = createServerClient()
+
+  // Povezava za spletno plačilo (ostanek ali celoten znesek) — nič ne spreminja v bazi
+  if (action === 'send_payment_link') {
+    if (!getStripe()) return NextResponse.json({ error: 'Stripe še ni nastavljen.' }, { status: 501 })
+    if (!emailConfigured()) return NextResponse.json({ error: 'Resend (e-pošta) še ni nastavljen.' }, { status: 501 })
+    const { data: list } = await supabase.rpc('get_booking_for_payment', { p_secret: secret, p_booking_id: id })
+    const b = list && list.id ? list : null
+    if (!b) return NextResponse.json({ error: 'Rezervacija ne obstaja' }, { status: 404 })
+    if (b.status === 'cancelled') return NextResponse.json({ error: 'Rezervacija je preklicana.' }, { status: 400 })
+    if (amountDue(b) <= 0) return NextResponse.json({ error: 'Rezervacija je že plačana.' }, { status: 400 })
+    const ok = await sendCustomerPaymentRequest(b)
+    if (!ok) return NextResponse.json({ error: 'E-pošte ni bilo mogoče poslati.' }, { status: 502 })
+    return NextResponse.json({ booking: b, message: `Povezava za plačilo ${amountDue(b).toFixed(2)} € je poslana na ${b.customer_email}.` })
+  }
 
   const args: {
     p_secret: string
@@ -76,7 +94,6 @@ export async function PATCH(req: Request) {
       break
   }
 
-  const supabase = createServerClient()
   const { data: booking, error } = await supabase.rpc('admin_update_booking', args)
   if (error || !booking) {
     const msg = error?.message?.includes('že zaseden') || error?.code === '23505'
@@ -98,17 +115,11 @@ export async function PATCH(req: Request) {
   }
 
   if (action === 'confirm_zar') {
-    await Promise.all([
-      sendCustomerZarStatusEmail(result, 'confirmed'),
-      sendBookingInfoEmail({
-        to: result.customer_email,
-        date: result.booking_date,
-        includesPiknik: result.includes_piknik,
-        includesZar: result.includes_zar,
-      }),
-    ])
+    await sendCustomerZarStatusEmail(result, 'confirmed')
   } else if (action === 'reject_zar') {
     await sendCustomerZarStatusEmail(result, 'rejected')
+  } else if (action === 'cancel' && notify) {
+    await sendCustomerCancelled(result, 'admin')
   }
 
   return NextResponse.json({ booking: result })

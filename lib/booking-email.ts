@@ -25,12 +25,14 @@ export function renderNarocilnicaHtml(booking: Booking, breakdown: PriceBreakdow
     ${booking.event_start_time ? `<p><strong>Hrana pripravljena ob:</strong> ${booking.event_start_time.slice(0, 5)}</p>` : ''}
     ${booking.location ? `<p><strong>Lokacija:</strong> ${escapeHtml(booking.location)}</p>` : ''}
     ${booking.guest_count ? `<p><strong>Število gostov:</strong> ${booking.guest_count}</p>` : ''}
+    ${booking.includes_zar ? `<p><strong>Meni:</strong> ${(booking.meat_preferences as { menuType?: string } | null)?.menuType === 'zimski' ? 'Zimski meni' : 'Klasična žar ponudba'}</p>` : ''}
+    ${booking.zar_confirmation === 'pending' ? '<p style="background:#fbecd0;padding:8px 10px;border-radius:6px;">Žar mojster je na ta dan pogojno prost — termin potrdimo naknadno.</p>' : ''}
     ${meatNotes ? `<p><strong>Opombe:</strong> ${escapeHtml(meatNotes)}</p>` : ''}
 
     <table style="width:100%;border-collapse:collapse;margin-top:16px;border-top:1px solid #e4d9c4;padding-top:8px;">
       ${rows}
       <tr><td style="padding-top:8px;font-weight:bold;">Skupaj</td><td style="padding-top:8px;font-weight:bold;text-align:right;">${(booking.price_total ?? 0).toFixed(2)} €</td></tr>
-      ${breakdown.payLater > 0 ? `<tr><td style="padding-top:4px;">Ob rezervaciji (piknik prostor + ara žar mojster)</td><td style="padding-top:4px;text-align:right;">${breakdown.payNow.toFixed(2)} €</td></tr><tr><td>Ostanek (žar mojster, plačilo kasneje)</td><td style="text-align:right;">${breakdown.payLater.toFixed(2)} €</td></tr>` : ''}
+      <tr><td style="padding-top:4px;color:#6b5d4f;font-size:13px;">od tega DDV ${(breakdown.vatRate * 100).toLocaleString('sl-SI')} %</td><td style="padding-top:4px;text-align:right;color:#6b5d4f;font-size:13px;">${breakdown.vatAmount.toFixed(2)} €</td></tr>
     </table>
 
     <h2 style="font-size:16px;margin-top:24px;">Podatki naročnika</h2>

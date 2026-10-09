@@ -1,14 +1,10 @@
-import { getResend } from '@/lib/resend'
-import { bookingDetailRows, bookingQuantities, formatDateSl, type Booking } from '@/lib/booking-details'
+// E-pošta lastniku (info@peresuti.si) — vsi podatki rezervacije + povezava na admin koledar.
+import { bookingDetailRows, bookingQuantities, type Booking } from '@/lib/booking-details'
 import { QUANTITIES_NOTE } from '@/lib/menu'
+import { appUrl, emailButton, emailLayout, esc, sendEmail } from '@/lib/email'
 
-const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
-const wrap = (inner: string) =>
-  `<div style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;color:#2a1f17;font-size:14px;line-height:1.5;">${inner}</div>`
-
-function adminUrl(b: Booking) {
-  const base = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
-  return `${base}/admin?mesec=${b.booking_date.slice(0, 7)}&rezervacija=${b.id}`
+export function adminBookingUrl(b: Booking) {
+  return appUrl(`/admin?mesec=${b.booking_date.slice(0, 7)}&rezervacija=${b.id}`)
 }
 
 export function renderBookingDetailsHtml(b: Booking): string {
@@ -30,51 +26,55 @@ export function renderBookingDetailsHtml(b: Booking): string {
   return `<table style="border-collapse:collapse;">${rows}</table>${qHtml}`
 }
 
-async function send(to: string, subject: string, html: string) {
-  const resend = getResend()
-  const from = process.env.RESEND_FROM_EMAIL
-  if (!resend || !from) return
-  try {
-    await resend.emails.send({ from, to, subject, html })
-  } catch (e) {
-    console.error('email send failed:', e)
-  }
+type OwnerKind = 'paid' | 'inquiry' | 'new' | 'balance_paid' | 'unpaid_pending'
+
+const HEADINGS: Record<OwnerKind, string> = {
+  paid: 'Nova plačana rezervacija',
+  inquiry: 'Novo povpraševanje — čaka vašo potrditev',
+  new: 'Nova rezervacija',
+  balance_paid: 'Plačan ostanek rezervacije',
+  unpaid_pending: 'Nova rezervacija — spletno plačilo ni nastavljeno',
 }
 
 /** Obvestilo lastniku z vsemi podatki rezervacije in povezavo na admin koledar. */
-export async function sendOwnerBookingEmail(b: Booking, kind: 'paid' | 'inquiry' | 'new') {
+export async function sendOwnerBookingEmail(b: Booking, kind: OwnerKind, extra?: { amount?: number }) {
   const owner = process.env.OWNER_EMAIL
   if (!owner) return
-  const heading = {
-    paid: 'Nova plačana rezervacija',
-    inquiry: 'Novo povpraševanje — čaka vašo potrditev',
-    new: 'Nova rezervacija',
-  }[kind]
+  const heading = HEADINGS[kind]
   const who = b.company_name ?? b.customer_name
-  const html = wrap(`
-    <h1 style="font-size:20px;color:#3c2a1e;">${heading}</h1>
-    ${kind === 'inquiry' ? `<p style="background:#fbecd0;padding:10px 12px;border-radius:6px;">Na ta dan imate že vsaj dva piknika. Rezervacija je oddana <strong>brez are</strong> — v koledarju jo potrdite ali zavrnite, stranka bo o tem obveščena po e-pošti.</p>` : ''}
-    ${renderBookingDetailsHtml(b)}
-    <p style="margin-top:20px;"><a href="${adminUrl(b)}" style="background:#8a2f1d;color:#fff8ef;padding:10px 16px;border-radius:999px;text-decoration:none;">Odpri v koledarju →</a></p>`)
-  await send(owner, `${heading}: ${who} — ${b.booking_date}`, html)
+  const note =
+    kind === 'inquiry'
+      ? `<p style="background:#fbecd0;padding:10px 12px;border-radius:6px;">Na ta dan imate že vsaj dva piknika. Rezervacija je oddana <strong>brez are</strong> — v koledarju jo potrdite ali zavrnite, stranka bo o tem obveščena po e-pošti.</p>`
+      : kind === 'balance_paid' && extra?.amount
+        ? `<p style="background:#e5eedf;padding:10px 12px;border-radius:6px;">Stranka je na spletu plačala <strong>${extra.amount.toFixed(2)} €</strong>.</p>`
+        : kind === 'unpaid_pending'
+          ? `<p style="background:#fbecd0;padding:10px 12px;border-radius:6px;">Spletno plačilo (Stripe) še ni nastavljeno, zato stranka ni plačala — dogovorite se za plačilo.</p>`
+          : ''
+  await sendEmail({
+    to: owner,
+    subject: `${heading}: ${who} — ${b.booking_date}`,
+    // odgovor gre neposredno stranki
+    replyTo: b.customer_email,
+    html: emailLayout(`
+      <h1 style="font-size:20px;color:#3c2a1e;">${heading}</h1>
+      ${note}
+      ${renderBookingDetailsHtml(b)}
+      ${emailButton(adminBookingUrl(b), 'Odpri v koledarju →')}`),
+  })
 }
 
-/** Sporočila stranki pri pogojnem terminu žar mojstra. */
-export async function sendCustomerZarStatusEmail(b: Booking, kind: 'inquiry' | 'confirmed' | 'rejected') {
-  const date = formatDateSl(b.booking_date)
-  const body = {
-    inquiry: `<h1 style="font-size:20px;color:#3c2a1e;">Prejeli smo vaše povpraševanje</h1>
-      <p>Hvala za rezervacijo žar mojstra za <strong>${esc(date)}</strong>. Na ta dan imamo že več piknikov, zato vaš termin še <strong>ni potrjen</strong> — preverimo razpored in vam potrditev pošljemo v najkrajšem možnem času.</p>
-      <p>Are za ta termin ne zaračunamo.</p>`,
-    confirmed: `<h1 style="font-size:20px;color:#3c2a1e;">Vaš termin je potrjen</h1>
-      <p>Z veseljem potrjujemo žar mojstra za <strong>${esc(date)}</strong>${b.event_start_time ? ` (hrana pripravljena ob ${b.event_start_time.slice(0, 5)})` : ''}. Se vidimo!</p>`,
-    rejected: `<h1 style="font-size:20px;color:#3c2a1e;">Žal termin ni na voljo</h1>
-      <p>Žal vam za <strong>${esc(date)}</strong> žar mojstra ne moremo zagotoviti, ker je razpored za ta dan že poln. Če vam ustreza drug datum, nam odgovorite na to sporočilo ali pokličite na 040 832 040.</p>`,
-  }[kind]
-  const subject = {
-    inquiry: `Povpraševanje prejeto — Perešuti (${b.booking_date})`,
-    confirmed: `Termin potrjen — Perešuti (${b.booking_date})`,
-    rejected: `Termin ni na voljo — Perešuti (${b.booking_date})`,
-  }[kind]
-  await send(b.customer_email, subject, wrap(`${body}<p style="color:#6b5d4f;font-size:13px;margin-top:24px;">Perešuti domače mesarstvo</p>`))
+/** Vprašanje s spletne strani (Perešutko) — lastniku, odgovor gre neposredno pošiljatelju. */
+export async function sendOwnerContactEmail(opts: { name: string; email: string; phone?: string; message: string }) {
+  const owner = process.env.OWNER_EMAIL
+  if (!owner) return false
+  return sendEmail({
+    to: owner,
+    replyTo: opts.email,
+    subject: `Vprašanje s strani rezervacij — ${opts.name}`,
+    html: emailLayout(`
+      <h1 style="font-size:20px;color:#3c2a1e;">Novo vprašanje</h1>
+      <p><strong>${esc(opts.name)}</strong> · ${esc(opts.email)}${opts.phone ? ` · ${esc(opts.phone)}` : ''}</p>
+      <p style="white-space:pre-wrap;background:#f2ead9;padding:12px;border-radius:6px;">${esc(opts.message)}</p>
+      <p style="color:#6b5d4f;font-size:13px;">Za odgovor samo kliknite »Odgovori«.</p>`),
+  })
 }

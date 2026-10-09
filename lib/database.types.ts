@@ -58,6 +58,7 @@ export type Database = {
           stripe_session_id: string | null
           upsell_selections: Json | null
           admin_note: string | null
+          amount_paid: number
           zar_confirmation: string | null
         }
         Insert: {
@@ -88,6 +89,7 @@ export type Database = {
           stripe_session_id?: string | null
           upsell_selections?: Json | null
           admin_note?: string | null
+          amount_paid?: number
           zar_confirmation?: string | null
         }
         Update: {
@@ -118,6 +120,7 @@ export type Database = {
           stripe_session_id?: string | null
           upsell_selections?: Json | null
           admin_note?: string | null
+          amount_paid?: number
           zar_confirmation?: string | null
         }
         Relationships: []
@@ -289,6 +292,22 @@ export type Database = {
       }
     }
     Functions: {
+      get_booking_for_payment: {
+        Args: { p_secret: string; p_booking_id: string }
+        Returns: BookingRow
+      }
+      record_payment_session: {
+        Args: { p_secret: string; p_booking_id: string; p_session_id: string; p_kind: string; p_amount: number }
+        Returns: undefined
+      }
+      mark_payment_paid: {
+        Args: { p_secret: string; p_session_id: string }
+        Returns: Json
+      }
+      expire_payment_session: {
+        Args: { p_secret: string; p_session_id: string }
+        Returns: Json
+      }
       admin_list_bookings: {
         Args: { p_from: string; p_secret: string; p_to: string }
         Returns: BookingRow[]
@@ -354,6 +373,7 @@ export type Database = {
           stripe_session_id: string | null
           upsell_selections: Json | null
           admin_note: string | null
+          amount_paid: number
           zar_confirmation: string | null
         }
         SetofOptions: {
@@ -393,6 +413,7 @@ export type Database = {
           stripe_session_id: string | null
           upsell_selections: Json | null
           admin_note: string | null
+          amount_paid: number
           zar_confirmation: string | null
         }
         SetofOptions: {

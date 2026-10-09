@@ -1,15 +1,22 @@
 import { NextResponse } from 'next/server'
+import type Stripe from 'stripe'
 import { getStripe } from '@/lib/stripe'
 import { createServerClient } from '@/lib/supabase/server'
-import { sendBookingInfoEmail } from '@/lib/info-email'
+import { internalSecret } from '@/lib/payments'
 import { sendOwnerBookingEmail } from '@/lib/owner-email'
+import { sendCustomerBalancePaid, sendCustomerBookingConfirmed, sendCustomerCancelled } from '@/lib/customer-email'
+import type { Booking } from '@/lib/booking-details'
 
+// Stripe webhook. V Stripe nadzorni plošči mora biti nastavljen endpoint
+//   https://<domena>/api/stripe/webhook
+// z dogodki: checkout.session.completed, checkout.session.async_payment_succeeded,
+//            checkout.session.expired
 export async function POST(req: Request) {
   const stripe = getStripe()
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
-  const internalSecret = process.env.BOOKING_INTERNAL_SECRET
+  const secret = internalSecret()
 
-  if (!stripe || !webhookSecret || !internalSecret) {
+  if (!stripe || !webhookSecret || !secret) {
     return NextResponse.json({ error: 'Stripe webhook ni konfiguriran' }, { status: 501 })
   }
 
@@ -19,45 +26,48 @@ export async function POST(req: Request) {
   }
 
   const rawBody = await req.text()
-
-  let event
+  let event: Stripe.Event
   try {
     event = stripe.webhooks.constructEvent(rawBody, signature, webhookSecret)
   } catch {
     return NextResponse.json({ error: 'Neveljaven podpis' }, { status: 400 })
   }
 
-  if (event.type === 'checkout.session.completed') {
-    const session = event.data.object as {
-      id: string
-      customer_email: string | null
-      customer_details?: { email?: string | null } | null
-      metadata?: Record<string, string> | null
-    }
-    const supabase = createServerClient()
+  const supabase = createServerClient()
 
-    const { data: paidBooking, error } = await supabase.rpc('mark_booking_paid', {
-      p_session_id: session.id,
-      p_secret: internalSecret,
-    })
+  if (event.type === 'checkout.session.completed' || event.type === 'checkout.session.async_payment_succeeded') {
+    const session = event.data.object
+    // pri odloženih načinih plačila (npr. bančno nakazilo) počakamo na async_payment_succeeded
+    if (session.payment_status !== 'paid') return NextResponse.json({ received: true })
 
+    const { data, error } = await supabase.rpc('mark_payment_paid', { p_secret: secret, p_session_id: session.id })
     if (error) {
-      // Ne vračamo 500 za "booking not found" primere, da Stripe ne pošilja neskončnih retryjev
-      // za dogodke, ki niso naši (druga aplikacija na istem Stripe računu ipd.)
-      console.error('mark_booking_paid failed:', error.message)
-    } else {
-      // lastniku vsi podatki rezervacije (ime, telefon, e-pošta, plačilo, količine hrane …)
-      if (paidBooking) await sendOwnerBookingEmail(paidBooking, 'paid')
-      const to = session.customer_details?.email ?? session.customer_email
-      const m = session.metadata ?? {}
-      if (to && m.booking_date) {
-        await sendBookingInfoEmail({
-          to,
-          date: m.booking_date,
-          includesPiknik: m.includes_piknik === '1',
-          includesZar: m.includes_zar === '1',
-        })
+      // Seja ni naša (druga aplikacija na istem Stripe računu) ali je starejša od te verzije.
+      // Ne vračamo 500, da Stripe ne ponavlja v nedogled.
+      console.error('mark_payment_paid failed:', session.id, error.message)
+      return NextResponse.json({ received: true })
+    }
+    const res = data as { already: boolean; kind: 'booking' | 'balance'; amount: number; booking: Booking }
+    if (!res.already) {
+      if (res.kind === 'booking') {
+        await Promise.all([sendOwnerBookingEmail(res.booking, 'paid'), sendCustomerBookingConfirmed(res.booking)])
+      } else {
+        await Promise.all([
+          sendOwnerBookingEmail(res.booking, 'balance_paid', { amount: Number(res.amount) }),
+          sendCustomerBalancePaid(res.booking, Number(res.amount)),
+        ])
       }
+    }
+  }
+
+  if (event.type === 'checkout.session.expired') {
+    const session = event.data.object
+    const { data, error } = await supabase.rpc('expire_payment_session', { p_secret: secret, p_session_id: session.id })
+    if (error) {
+      console.error('expire_payment_session failed:', session.id, error.message)
+    } else {
+      const res = data as { cancelled: boolean; booking?: Booking }
+      if (res.cancelled && res.booking) await sendCustomerCancelled(res.booking, 'expired')
     }
   }
 

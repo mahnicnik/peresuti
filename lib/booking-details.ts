@@ -27,7 +27,8 @@ export const STATUS_LABELS: Record<string, string> = {
 }
 export const PAYMENT_LABELS: Record<string, string> = {
   unpaid: 'Ni plačano',
-  paid: 'Plačano',
+  partial: 'Delno plačano',
+  paid: 'Plačano v celoti',
   invoiced: 'Naročilnica (račun)',
   not_applicable: '—',
 }
@@ -94,8 +95,10 @@ export function bookingDetailRows(b: Booking): { label: string; value: string }[
   add('E-pošta', b.customer_email)
 
   add('Skupaj', `${eur(b.price_total)} (DDV ${b.includes_zar ? '9,5' : '22'} % vključen)`)
-  if (u.payNow != null) add('Ob rezervaciji', eur(u.payNow))
-  if (u.payLater) add('Ostanek (plačilo kasneje)', eur(u.payLater))
+  if (u.payNow != null && b.entity_type === 'fizicna') add('Za plačilo ob rezervaciji', eur(u.payNow))
+  if (b.amount_paid > 0) add('Plačano', eur(b.amount_paid))
+  const due = Math.max(0, (b.price_total ?? 0) - (b.amount_paid ?? 0))
+  if (due > 0.004 && b.entity_type === 'fizicna') add('Še odprto', eur(due))
   add('Plačilo', PAYMENT_LABELS[b.payment_status] ?? b.payment_status)
   add('Status', STATUS_LABELS[b.status] ?? b.status)
   if (b.zar_confirmation) add('Žar mojster', ZAR_CONF_LABELS[b.zar_confirmation] ?? b.zar_confirmation)

@@ -3,10 +3,12 @@ import { createServerClient } from '@/lib/supabase/server'
 import { bookingRequestSchema } from '@/lib/booking-schema'
 import { computePriceBreakdown, kmChargeForPostalCode, ZAR_CONDITIONAL_THRESHOLD, type PricingReferenceData } from '@/lib/pricing'
 import { getStripe } from '@/lib/stripe'
-import { getResend } from '@/lib/resend'
 import { renderNarocilnicaHtml } from '@/lib/booking-email'
 import { sendBookingInfoEmail } from '@/lib/info-email'
-import { sendOwnerBookingEmail, sendCustomerZarStatusEmail } from '@/lib/owner-email'
+import { adminBookingUrl, sendOwnerBookingEmail } from '@/lib/owner-email'
+import { sendCustomerZarStatusEmail } from '@/lib/customer-email'
+import { emailButton, emailLayout, sendEmail } from '@/lib/email'
+import { createCheckoutSession, internalSecret } from '@/lib/payments'
 
 export async function POST(req: Request) {
   const supabase = createServerClient()
@@ -136,99 +138,81 @@ export async function POST(req: Request) {
 
   // --- Pravna oseba: naročilnica prek Resend (lastniku + kopija naročniku) ---
   if (body.entityType === 'pravna') {
-    const resend = getResend()
-    const ownerEmail = process.env.OWNER_EMAIL
-    const fromEmail = process.env.RESEND_FROM_EMAIL
-
-    if (!resend || !ownerEmail || !fromEmail) {
-      return NextResponse.json({
-        success: true,
-        entityType: 'pravna',
-        bookingId: booking.id,
-        warning:
-          'Rezervacija je shranjena, e-pošta pa še ni bila poslana, ker Resend še ni povezan (manjka RESEND_API_KEY/OWNER_EMAIL). Uredite to v .env, ko boste imeli Resend račun.',
-      })
-    }
-
     const html = renderNarocilnicaHtml(booking, breakdown)
-    const subject = `Naročilnica — ${booking.company_name ?? booking.customer_name} — ${booking.booking_date}`
-
-    await Promise.all([
-      resend.emails.send({ from: fromEmail, to: ownerEmail, subject, html }),
-      resend.emails.send({ from: fromEmail, to: booking.customer_email, subject: `Vaša naročilnica — Perešuti (${booking.booking_date})`, html }),
+    const who = booking.company_name ?? booking.customer_name
+    const ownerEmail = process.env.OWNER_EMAIL
+    const [ownerSent] = await Promise.all([
+      ownerEmail
+        ? sendEmail({
+            to: ownerEmail,
+            replyTo: booking.customer_email,
+            subject: `${zarConditional ? 'Naročilnica (žar čaka potrditev)' : 'Naročilnica'} — ${who} — ${booking.booking_date}`,
+            html: emailLayout(`${html}${emailButton(adminBookingUrl(booking), 'Odpri v koledarju →')}`),
+          })
+        : Promise.resolve(false),
+      sendEmail({
+        to: booking.customer_email,
+        subject: `Vaša naročilnica — Perešuti (${booking.booking_date})`,
+        html: emailLayout(html),
+      }),
       sendBookingInfoEmail({
         to: booking.customer_email,
         date: booking.booking_date,
         includesPiknik: finalIncludesPiknik,
         includesZar: finalIncludesZar,
+        menuType: finalIncludesZar ? body.menuType : null,
       }),
-      zarConditional ? sendOwnerBookingEmail(booking, 'inquiry') : Promise.resolve(),
     ])
 
-    return NextResponse.json({ success: true, entityType: 'pravna', bookingId: booking.id, conditional: zarConditional })
+    return NextResponse.json({
+      success: true,
+      entityType: 'pravna',
+      bookingId: booking.id,
+      conditional: zarConditional,
+      ...(ownerSent ? {} : { warning: 'Rezervacija je shranjena, e-pošta pa ni bila poslana (Resend ni nastavljen).' }),
+    })
   }
 
   // --- Fizična oseba: plačilo prek Stripe ---
-  const stripe = getStripe()
-  if (!stripe) {
+  if (!getStripe()) {
+    // Brez Stripe rezervacije ne izgubimo: lastnik dobi vse podatke in se dogovori za plačilo.
+    await sendOwnerBookingEmail(booking, 'unpaid_pending')
     return NextResponse.json({
       success: true,
       entityType: 'fizicna',
       bookingId: booking.id,
       checkoutUrl: null,
       warning:
-        'Rezervacija je shranjena kot čakajoča. Spletno plačilo še ni povezano (manjka STRIPE_SECRET_KEY) — kontaktirali vas bomo za dogovor o plačilu.',
+        'Rezervacija je shranjena kot čakajoča. Spletno plačilo še ni povezano — kontaktirali vas bomo za dogovor o plačilu.',
     })
   }
 
-  // Stripe ne podpira negativnih zneskov v line_items, zato pošljemo en sam
-  // line item z že izračunanim skupnim zneskom (razčlenitev je stranka že videla v aplikaciji,
-  // enako pa jo dobi tudi na prejetem računu iz računko.si).
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
-  const itemDescription = [
+  const lines = [
     ...breakdown.lines.map((l) => `${l.label}: ${l.amount.toFixed(2)} €`),
-    breakdown.payLater > 0 ? `Plačilo zdaj: ${breakdown.payNow.toFixed(2)} € (ostanek ${breakdown.payLater.toFixed(2)} € za žar mojstra plačate kasneje)` : '',
-  ]
-    .filter(Boolean)
-    .join(' · ')
-  const session = await stripe.checkout.sessions.create({
-    mode: 'payment',
-    payment_method_types: ['card'],
-    customer_email: booking.customer_email,
-    line_items: [
-      {
-        price_data: {
-          currency: 'eur',
-          product_data: {
-            name: breakdown.payLater > 0
-              ? `Rezervacija Perešuti — ${booking.booking_date} (plačilo ob rezervaciji)`
-              : `Rezervacija Perešuti — ${booking.booking_date}`,
-            description: itemDescription.slice(0, 500),
-          },
-          unit_amount: Math.round(breakdown.payNow * 100),
-        },
-        quantity: 1,
-      },
-    ],
-    metadata: {
-      booking_id: booking.id,
-      booking_date: booking.booking_date,
-      includes_piknik: finalIncludesPiknik ? '1' : '0',
-      includes_zar: finalIncludesZar ? '1' : '0',
-    },
-    success_url: `${appUrl}/rezervacija/potrditev?status=success&booking=${booking.id}`,
-    cancel_url: `${appUrl}/rezervacija/potrditev?status=cancelled&booking=${booking.id}`,
-  })
+    breakdown.payLater > 0
+      ? `Plačilo zdaj: ${breakdown.payNow.toFixed(2)} € (ostanek ${breakdown.payLater.toFixed(2)} € plačate kasneje)`
+      : '',
+  ].filter(Boolean)
 
-  await supabase.rpc('set_booking_stripe_session', {
-    p_booking_id: booking.id,
-    p_session_id: session.id,
-  })
+  const checkout = await createCheckoutSession({ booking, kind: 'booking', amount: breakdown.payNow, lines })
+  if ('error' in checkout) {
+    // Plačila ni bilo mogoče začeti -> rezervacijo prekličemo, da termin ne ostane blokiran
+    const secret = internalSecret()
+    if (secret) {
+      await supabase.rpc('admin_update_booking', {
+        p_secret: secret,
+        p_id: booking.id,
+        p_status: 'cancelled',
+        p_admin_note: '[Samodejno preklicano: plačila ni bilo mogoče začeti.]',
+      })
+    }
+    return NextResponse.json({ error: checkout.error }, { status: 502 })
+  }
 
   return NextResponse.json({
     success: true,
     entityType: 'fizicna',
     bookingId: booking.id,
-    checkoutUrl: session.url,
+    checkoutUrl: checkout.url,
   })
 }

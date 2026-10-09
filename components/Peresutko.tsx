@@ -9,6 +9,8 @@ export default function Peresutko() {
   const [open, setOpen] = useState(false)
   const [nodeId, setNodeId] = useState('root')
   const [inputValue, setInputValue] = useState('')
+  // Vprašanje, na katerega Perešutko ne zna odgovoriti -> ponudimo pošiljanje po e-pošti
+  const [contactDraft, setContactDraft] = useState<string | null>(null)
   const [history, setHistory] = useState<HistoryItem[]>(() =>
     PERESUTKO_TREE.root.bot.map((t) => ({ role: 'bot' as const, text: t }))
   )
@@ -38,7 +40,9 @@ export default function Peresutko() {
         ...h,
         { role: 'user', text },
         { role: 'bot', text: PERESUTKO_FALLBACK_TEXT },
+        { role: 'bot', text: 'Lahko pa nam vprašanje pošljete po e-pošti — odgovorimo vam v najkrajšem možnem času. 👇' },
       ])
+      setContactDraft(text)
       return
     }
 
@@ -104,7 +108,7 @@ export default function Peresutko() {
             ))}
           </div>
 
-          {node?.options && (
+          {node?.options && contactDraft === null && (
             <div
               className="px-3 pt-3 flex flex-col gap-2 border-t"
               style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}
@@ -121,6 +125,25 @@ export default function Peresutko() {
             </div>
           )}
 
+          {contactDraft !== null ? (
+            <ContactForm
+              initialMessage={contactDraft}
+              onClose={() => setContactDraft(null)}
+              onSent={() => {
+                setContactDraft(null)
+                setHistory((h) => [...h, { role: 'bot', text: 'Hvala! Vaše vprašanje smo prejeli in vam odgovorimo po e-pošti. 🐷' }])
+              }}
+            />
+          ) : (
+          <>
+          <button
+            type="button"
+            onClick={() => setContactDraft('')}
+            className="px-3 pt-2 text-xs text-left underline"
+            style={{ color: 'var(--color-text-muted)', background: 'var(--color-surface)' }}
+          >
+            ✉️ Pošljite nam vprašanje po e-pošti
+          </button>
           <form
             onSubmit={handleSend}
             className="px-3 py-3 flex items-center gap-2 border-t"
@@ -148,6 +171,8 @@ export default function Peresutko() {
               Pošlji
             </button>
           </form>
+          </>
+          )}
         </div>
       )}
 
@@ -182,5 +207,87 @@ export default function Peresutko() {
         {open ? 'Zapri klepet' : '🐷 Vprašaj Perešutka'}
       </button>
     </div>
+  )
+}
+
+function ContactForm({
+  initialMessage,
+  onClose,
+  onSent,
+}: {
+  initialMessage: string
+  onClose: () => void
+  onSent: () => void
+}) {
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
+  const [message, setMessage] = useState(initialMessage)
+  const [website, setWebsite] = useState('') // past za spam (skrito polje)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    setBusy(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, phone, message, website }),
+      })
+      const d = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(d.error ?? 'Pošiljanje ni uspelo.')
+      onSent()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Pošiljanje ni uspelo.')
+      setBusy(false)
+    }
+  }
+
+  const input = {
+    border: '1px solid var(--color-border)',
+    borderRadius: '0.6rem',
+    padding: '0.45rem 0.7rem',
+    background: '#fff',
+    color: 'var(--color-text)',
+  } as const
+
+  return (
+    <form
+      onSubmit={submit}
+      className="px-3 py-3 flex flex-col gap-2 border-t text-sm"
+      style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}
+    >
+      <div className="flex items-center justify-between">
+        <span className="font-semibold" style={{ color: 'var(--color-brown-dark)' }}>Vprašanje po e-pošti</span>
+        <button type="button" onClick={onClose} className="text-xs underline" style={{ color: 'var(--color-text-muted)' }}>
+          Nazaj
+        </button>
+      </div>
+      <input style={input} placeholder="Ime in priimek *" value={name} onChange={(e) => setName(e.target.value)} required />
+      <div className="flex gap-2">
+        <input style={input} className="flex-1 min-w-0" type="email" placeholder="E-pošta *" value={email} onChange={(e) => setEmail(e.target.value)} required />
+        <input style={input} className="w-28" placeholder="Telefon" value={phone} onChange={(e) => setPhone(e.target.value)} />
+      </div>
+      <textarea style={input} rows={3} placeholder="Vaše vprašanje *" value={message} onChange={(e) => setMessage(e.target.value)} required />
+      <input
+        tabIndex={-1}
+        autoComplete="off"
+        aria-hidden="true"
+        className="hidden"
+        value={website}
+        onChange={(e) => setWebsite(e.target.value)}
+      />
+      {error && <span className="text-xs" style={{ color: 'var(--color-danger)' }}>{error}</span>}
+      <button
+        type="submit"
+        className="btn btn-primary !rounded-lg !py-2 text-sm"
+        disabled={busy || !name.trim() || !email.trim() || message.trim().length < 3}
+      >
+        {busy ? 'Pošiljam …' : 'Pošlji vprašanje'}
+      </button>
+    </form>
   )
 }

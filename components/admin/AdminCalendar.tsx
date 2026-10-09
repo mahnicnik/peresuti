@@ -10,6 +10,7 @@ import {
   type Booking,
 } from '@/lib/booking-details'
 import { menuLabel, QUANTITIES_NOTE } from '@/lib/menu'
+import { amountDue } from '@/lib/payments-shared'
 
 const DAY_NAMES = ['Pon', 'Tor', 'Sre', 'Čet', 'Pet', 'Sob', 'Ned']
 const MONTH_NAMES = [
@@ -17,7 +18,7 @@ const MONTH_NAMES = [
   'Julij', 'Avgust', 'September', 'Oktober', 'November', 'December',
 ]
 
-type Action = 'confirm_zar' | 'reject_zar' | 'mark_paid' | 'mark_unpaid' | 'cancel' | 'restore' | 'note'
+type Action = 'confirm_zar' | 'reject_zar' | 'mark_paid' | 'mark_unpaid' | 'cancel' | 'restore' | 'note' | 'send_payment_link'
 
 const pad = (n: number) => String(n).padStart(2, '0')
 const ymd = (y: number, m: number, d: number) => `${y}-${pad(m + 1)}-${pad(d)}`
@@ -134,18 +135,24 @@ export default function AdminCalendar({ initialMonth, initialBookingId }: { init
   }, [cursor])
 
   async function act(id: string, action: Action, note?: string) {
-    if (action === 'cancel' && !confirm('Res prekličem to rezervacijo? (Termin se sprosti.)')) return
+    let notify = false
+    if (action === 'cancel') {
+      if (!confirm('Res prekličem to rezervacijo? (Termin se sprosti.)')) return
+      notify = confirm('Obvestim stranko o preklicu po e-pošti?\n\nOK = pošlji e-pošto, Prekliči = brez e-pošte')
+    }
     if (action === 'reject_zar' && !confirm('Zavrnem žar mojstra za to rezervacijo? Stranka dobi e-pošto, da termin ni na voljo.')) return
+    if (action === 'send_payment_link' && !confirm('Stranki pošljem e-pošto s povezavo za spletno plačilo?')) return
     const res = await fetch('/api/admin/bookings', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, action, note }),
+      body: JSON.stringify({ id, action, note, notify }),
     })
     const d = await res.json().catch(() => ({}))
     if (!res.ok) {
       alert(d.error ?? 'Napaka')
       return
     }
+    if (d.message) alert(d.message)
     load()
   }
 
@@ -349,12 +356,20 @@ function BookingCard({ b, highlighted, onAction }: { b: Booking; highlighted: bo
           style={
             b.payment_status === 'paid'
               ? { background: '#e5eedf', color: 'var(--color-success)' }
+              : b.payment_status === 'partial'
+                ? { background: '#fbecd0', color: 'var(--color-accent-dark)' }
               : b.payment_status === 'invoiced'
                 ? { background: '#e8e3f3', color: '#5a4a8a' }
                 : { background: '#f6e2dc', color: 'var(--color-danger)' }
           }
         >
-          {b.payment_status === 'paid' ? 'Plačano' : b.payment_status === 'invoiced' ? 'Naročilnica' : 'Ni plačano'}
+          {b.payment_status === 'paid'
+            ? 'Plačano'
+            : b.payment_status === 'partial'
+              ? 'Delno plačano'
+              : b.payment_status === 'invoiced'
+                ? 'Naročilnica'
+                : 'Ni plačano'}
         </span>
       </div>
 
@@ -426,8 +441,13 @@ function BookingCard({ b, highlighted, onAction }: { b: Booking; highlighted: bo
       </label>
 
       <div className="flex flex-wrap gap-2 pt-2 border-t" style={{ borderColor: 'var(--color-border)' }}>
-        {b.status !== 'cancelled' && b.payment_status === 'unpaid' && (
-          <SmallBtn kind="ok" onClick={() => onAction(b.id, 'mark_paid')}>Označi kot plačano</SmallBtn>
+        {b.status !== 'cancelled' && b.entity_type === 'fizicna' && amountDue(b) > 0 && (
+          <SmallBtn kind="plain" onClick={() => onAction(b.id, 'send_payment_link')}>
+            Pošlji povezavo za plačilo ({amountDue(b).toFixed(2)} €)
+          </SmallBtn>
+        )}
+        {b.status !== 'cancelled' && (b.payment_status === 'unpaid' || b.payment_status === 'partial') && (
+          <SmallBtn kind="ok" onClick={() => onAction(b.id, 'mark_paid')}>Označi kot plačano v celoti</SmallBtn>
         )}
         {b.status !== 'cancelled' && b.payment_status === 'paid' && (
           <SmallBtn kind="plain" onClick={() => onAction(b.id, 'mark_unpaid')}>Označi kot neplačano</SmallBtn>
