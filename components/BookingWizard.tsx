@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import Peresutko from '@/components/Peresutko'
 import { useWizardState } from './booking/useWizardState'
 import { WizardProvider, useWizard } from './booking/WizardContext'
@@ -34,13 +33,13 @@ function WizardLayout() {
 
   return (
     <div className="container-app pt-6 pb-8 sm:pt-8 sm:pb-12">
-      <Link
-        href="/"
+      <a
+        href="https://peresuti.si"
         className="inline-flex items-center gap-1.5 text-sm mb-5 hover:opacity-70 transition-opacity"
         style={{ color: 'var(--color-text-muted)' }}
       >
-        ← Nazaj na izbiro ponudbe
-      </Link>
+        ← Nazaj na peresuti.si
+      </a>
       <h1 className="text-2xl sm:text-3xl mb-4">{title}</h1>
       <StepProgress step={step} steps={visibleSteps} />
 
